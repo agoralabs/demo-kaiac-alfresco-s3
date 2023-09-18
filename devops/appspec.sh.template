@@ -7,6 +7,25 @@ source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
 if [ "$SCRIPT_MODE" == "CLOUDOCKER" ]
 then
 
+    #creation des volumes et positionnement des permissions
+    mkdir -p $source_folder/data/alf-repo-data
+    chown -R 33000 $source_folder/data/alf-repo-data
+
+    mkdir -p $source_folder/logs/alfresco
+    chown -R 33000 $source_folder/logs/alfresco
+
+    mkdir -p $source_folder/data/solr-data
+    chown 33007 $source_folder/data/solr-data
+
+    mkdir -p $source_folder/data/postgres-data
+    chown -R 999 $source_folder/data/postgres-data
+
+    mkdir -p $source_folder/logs/postgres
+    chown -R 999 $source_folder/logs/postgres
+
+    mkdir -p $source_folder/data/activemq-data
+    chown -R 33031 $source_folder/data/activemq-data
+
     aws ecr get-login-password --region $TF_VAR_ENV_APP_GL_AWS_REGION_ECR | docker login --username AWS --password-stdin $TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID.dkr.ecr.$TF_VAR_ENV_APP_GL_AWS_REGION_ECR.amazonaws.com
 
     docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
