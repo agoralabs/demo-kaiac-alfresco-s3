@@ -156,8 +156,8 @@ services:
             "
         volumes: 
             - ./data/solr-data:/opt/alfresco-search-services/data   
-            - ./backup/solr/alfresco:/opt/alfresco-search-services/backup/alfresco
-            - ./backup/solr/archive:/opt/alfresco-search-services/backup/archive
+            - ./backup/solr/alfresco:/opt/alfresco-search-services/solrhome/alfresco/alfresco
+            - ./backup/solr/archive:/opt/alfresco-search-services/solrhome/archive/archive
 
     
     activemq:
