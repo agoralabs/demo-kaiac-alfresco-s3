@@ -35,7 +35,7 @@ then
     #plannification du backup toutes les 2 minutes
     chmod +x $source_folder/backup.sh
 
-    if [ crontab -l | grep "backup.sh" ] then
+    if [ $(crontab -l | grep "$source_folder/backup.sh") ] then
         echo "already scheduled"
     else
         echo "to be scheduled"
