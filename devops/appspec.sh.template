@@ -35,23 +35,56 @@ then
     #connexion au repo docker AWS
     aws ecr get-login-password --region $TF_VAR_ENV_APP_GL_AWS_REGION_ECR | docker login --username AWS --password-stdin $TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID.dkr.ecr.$TF_VAR_ENV_APP_GL_AWS_REGION_ECR.amazonaws.com
 
-    #lancement des containers
-    docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
+    # Check si un backup existe
+    data_file="alfresco_backup.zip"
+    aws s3api head-object --bucket $TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_S3_BUCKET --key $data_file || NOT_EXIST=true
+    if [ $NOT_EXIST ]; then
+        echo "Backup does not exist."
 
-    #plannification du backup toutes les 2 minutes
-    chmod +x $source_folder/backup.sh
+        #lancement des containers
+        docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
 
-    if [ $(crontab -l | grep "kaiac") ] 
-    then
-        echo "already scheduled"
+        #plannification du backup toutes les 2 minutes
+        chmod +x $source_folder/backup.sh
+
+        if [ $(crontab -l | grep "kaiac") ] 
+        then
+            echo "already scheduled"
+        else
+            echo "to be scheduled"
+            crontab -l > tmpcron
+            #echo new cron into cron file
+            echo "*/5 * * * * $source_folder/backup.sh >> $source_folder/backup.log 2>&1" >> tmpcron
+            #install new cron file
+            crontab tmpcron
+            rm tmpcron
+        fi
     else
-        echo "to be scheduled"
-        crontab -l > tmpcron
-        #echo new cron into cron file
-        echo "*/5 * * * * $source_folder/backup.sh >> $source_folder/backup.log 2>&1" >> tmpcron
-        #install new cron file
-        crontab tmpcron
-        rm tmpcron
+
+        mkdir $source_folder/restore
+        #récupération du backup
+        aws s3 cp s3://$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_S3_BUCKET/$data_file .
+        cd $source_folder/restore
+        unzip -qq $source_folder/$data_file
+        
+        #arrêt des containers et suppression des volumes
+        docker compose -f $source_folder/docker-compose.yml down
+        docker volume rm $(docker volume ls -q | grep alfresco_postgres)
+
+        #deploiement de postgre
+        docker compose -f $source_folder/docker-compose.yml up postgres
+
+        #chargement du dump
+        cat $source_folder/restore/pg-dump.sql | docker-compose exec -T postgres psql --username alfresco --password alfresco
+
+        #Arrêt de postgre
+        docker compose -f $source_folder/docker-compose.yml stop postgres
+
+        #restauration des données
+        cp -r $source_folder/restore/alf-repo-data $source_folder/data
+
+        #lancement des containers
+        docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
 
     fi
 

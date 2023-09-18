@@ -2,25 +2,22 @@
 
 source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
 s3_bucket_backup="$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_S3_BUCKET"
-data_file="alfresco_data.zip"
-# create a zip archive
-mkdir bkp
-cd $source_folder/data
-zip -r $source_folder/$data_file .
+data_file="alfresco_backup.zip"
 
-# push the files to S3
-#/usr/local/bin/aws s3 cp $source_folder/$data_file s3://$s3_bucket_backup/$data_file
-
-# delete the backup file
-#rm -rf $source_folder/$data_file
-
-#Alfresco backup
+# Alfresco backup
 
 curl -u admin:admin "http://localhost:8080/solr/alfresco/replication?command=backup&location=/opt/alfresco-search-services/backup/alfresco/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
 curl -u admin:admin "http://localhost:8080/solr/archive/replication?command=backup&location=/opt/alfresco-search-services/backup/archive/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
 
-#Postgres backup
+# Postgres backup
 docker compose -f $source_folder/docker-compose.yml exec postgres pg_dump --username alfresco alfresco > $source_folder/backup/pg-dump.sql
 
-#Filesystem backup
+# Filesystem backup
 rsync -r $source_folder/data/alf-repo-data $source_folder/backup
+
+# Create a zip archive
+cd $source_folder/backup
+zip -r $source_folder/$data_file .
+
+# Copy backup file to S3
+/usr/local/bin/aws s3 cp $source_folder/$data_file s3://$s3_bucket_backup/$data_file
