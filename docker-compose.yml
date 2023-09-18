@@ -7,6 +7,7 @@ services:
           context: ./alfresco
           args:
             ALFRESCO_TAG: ${ALFRESCO_CE_TAG}
+            DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
             DB: postgres
             SOLR_COMMS: secret 
         mem_limit: 7488m
@@ -92,6 +93,7 @@ services:
           args:
             SHARE_TAG: ${SHARE_TAG}
             SERVER_NAME: ${SERVER_NAME}
+            DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
         mem_limit: 1872m
         environment:
             REPO_HOST: "alfresco"
@@ -132,6 +134,7 @@ services:
           context: ./search
           args:
             SEARCH_TAG: ${SEARCH_CE_TAG}
+            DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
             SOLR_HOSTNAME: solr6
             ALFRESCO_HOSTNAME: alfresco
             ALFRESCO_COMMS: secret 
@@ -158,7 +161,7 @@ services:
 
     
     activemq:
-        image: alfresco/alfresco-activemq:${ACTIVEMQ_TAG}
+        image: ${DOCKER_REPOSITORY}/alfresco/alfresco-activemq:${ACTIVEMQ_TAG}
         mem_limit: 1g
         ports:
             - 8161:8161
