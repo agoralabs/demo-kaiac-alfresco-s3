@@ -9,4 +9,10 @@ rm -rf $source_folder/data
 
 rm -rf $source_folder/logs
 
+docker compose -f $source_folder/docker-compose.yml down
+
+docker ps -a | grep -v CONTAINER | awk '{ print $1 }' | xargs docker stop
+
+docker ps -a | grep -v CONTAINER | awk '{ print $1 }' | xargs docker rm
+
 docker volume rm $(docker volume ls -q)
