@@ -20,8 +20,24 @@ source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
 # done
 
 #creation des volumes et positionnement des permissions
-chmod +x $source_folder/create_volumes.sh
-. $source_folder/create_volumes.sh
+mkdir -p $source_folder/data/alf-repo-data
+chown -R 33000 $source_folder/data/alf-repo-data
+
+mkdir -p $source_folder/logs/alfresco
+chown -R 33000 $source_folder/logs/alfresco
+
+mkdir -p $source_folder/data/solr-data
+chown 33007 $source_folder/data/solr-data
+
+mkdir -p $source_folder/data/postgres-data
+chown -R 999 $source_folder/data/postgres-data
+
+mkdir -p $source_folder/logs/postgres
+chown -R 999 $source_folder/logs/postgres
+
+mkdir -p $source_folder/data/activemq-data
+chown -R 33031 $source_folder/data/activemq-data
+
 
 appenvsubstr $source_folder/devops/.env.template $source_folder/.env
 
