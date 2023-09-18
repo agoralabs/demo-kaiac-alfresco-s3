@@ -1,0 +1,8 @@
+FROM ${TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID}.dkr.ecr.${TF_VAR_ENV_APP_GL_AWS_REGION_ECR}.amazonaws.com/alfresco/alfresco-content-repository-community:7.4.1
+ARG TOMCAT_DIR=/usr/local/tomcat
+USER root
+ADD alfresco-s3-connector-3.0.0.amp ${TOMCAT_DIR}/amps
+RUN java -jar ${TOMCAT_DIR}/alfresco-mnt/alfresco-mnt*.jar install \
+        ${TOMCAT_DIR}/amps ${TOMCAT_DIR}/webapps/alfresco -directory -nobackup
+USER alfresco
+CMD ["catalina.sh", "run"]
