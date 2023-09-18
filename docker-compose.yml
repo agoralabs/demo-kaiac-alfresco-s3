@@ -109,7 +109,6 @@ services:
         volumes: 
             - ./logs/share:/usr/local/tomcat/logs  
 
-
     postgres:
         image: ${DOCKER_REPOSITORY}/postgres:${POSTGRES_TAG}
         mem_limit: 1872m

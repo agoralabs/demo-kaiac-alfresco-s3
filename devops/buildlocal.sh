@@ -19,6 +19,9 @@ source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
 #     appenvsubstr $template $source_folder/$generated
 # done
 
+#creation des volumes et positionnement des permissions
+. $source_folder/create_volumes.sh
+
 appenvsubstr $source_folder/devops/.env.template $source_folder/.env
 
 log_msg "Login into ecr..."
