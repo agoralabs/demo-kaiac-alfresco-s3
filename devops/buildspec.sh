@@ -35,7 +35,8 @@ appenvsubstr(){
     | envsubst '$TF_VAR_ENV_APP_GL_REPO_ALFRESCO_CONTENT_APP_TAG' \
     | envsubst '$TF_VAR_ENV_APP_GL_REPO_ALFRESCO_POSTGRE_TAG' \
     | envsubst '$TF_VAR_ENV_APP_GL_REPO_ALFRESCO_TFRM_CORE_AIO_TAG' \
-    | envsubst '$TF_VAR_ENV_APP_GL_REPO_ALFRESCO_ACTIVEMQ_TAG' > $p_destination
+    | envsubst '$TF_VAR_ENV_APP_GL_REPO_ALFRESCO_ACTIVEMQ_TAG' \
+    | envsubst '$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_S3_BUCKET' > $p_destination
 }
 
 appenvsubstr devops/appspec.yml.template appspec.yml
