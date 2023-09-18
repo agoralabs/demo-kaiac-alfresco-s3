@@ -16,8 +16,8 @@ zip -r $source_folder/$data_file .
 
 #Alfresco backup
 
-curl -u admin:admin "http://localhost/solr/alfresco/replication?command=backup&location=/opt/alfresco-search-services/backup/alfresco/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
-curl -u admin:admin "http://localhost/solr/archive/replication?command=backup&location=/opt/alfresco-search-services/backup/archive/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
+curl -u admin:admin "http://localhost:8080/solr/alfresco/replication?command=backup&location=/opt/alfresco-search-services/backup/alfresco/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
+curl -u admin:admin "http://localhost:8080/solr/archive/replication?command=backup&location=/opt/alfresco-search-services/backup/archive/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
 
 #Postgres backup
 docker compose -f $source_folder/docker-compose.yml exec postgres pg_dump --username alfresco alfresco > $source_folder/backup/pg-dump.sql
