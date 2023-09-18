@@ -9,7 +9,7 @@ cd $source_folder/data
 zip -r $source_folder/$data_file .
 
 # push the files to S3
-aws s3 cp $source_folder/$data_file s3://$s3_bucket_backup/$data_file
+/usr/local/bin/aws s3 cp $source_folder/$data_file s3://$s3_bucket_backup/$data_file
 
 # delete the backup file
 rm -rf $source_folder/$data_file
