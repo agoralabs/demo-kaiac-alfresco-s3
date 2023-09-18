@@ -156,10 +156,10 @@ services:
             "
         volumes: 
             - ./data/solr-data:/opt/alfresco-search-services/data   
-            - ./backup/solr/alfresco:/opt/alfresco-search-services/solrhome/alfresco/alfresco
-            - ./backup/solr/archive:/opt/alfresco-search-services/solrhome/archive/archive
+            #- ./backup/solr/alfresco:/opt/alfresco-search-services/solrhome/alfresco/alfresco
+            #- ./backup/solr/archive:/opt/alfresco-search-services/solrhome/archive/archive
 
-    
+
     activemq:
         image: ${DOCKER_REPOSITORY}/alfresco/alfresco-activemq:${ACTIVEMQ_TAG}
         mem_limit: 1g

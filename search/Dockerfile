@@ -68,5 +68,5 @@ RUN if [ "$ALFRESCO_COMMS" == "https" ] ; then \
   ${DIST_DIR}/solr/bin/search_config_setup.sh; \
 fi
 
-RUN mkdir /opt/alfresco-search-services/backup/alfresco/alfresco && chown 33007 /opt/alfresco-search-services/backup/alfresco/alfresco
-RUN mkdir /opt/alfresco-search-services/backup/archive/archive && chown 33007 /opt/alfresco-search-services/backup/archive/archive
+#RUN mkdir /opt/alfresco-search-services/backup/alfresco/alfresco && chown 33007 /opt/alfresco-search-services/backup/alfresco/alfresco
+#RUN mkdir /opt/alfresco-search-services/backup/archive/archive && chown 33007 /opt/alfresco-search-services/backup/archive/archive
