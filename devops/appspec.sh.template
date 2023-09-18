@@ -26,8 +26,14 @@ then
     mkdir -p $source_folder/data/activemq-data
     chown -R 33031 $source_folder/data/activemq-data
 
+    #connexion au repo docker AWS
     aws ecr get-login-password --region $TF_VAR_ENV_APP_GL_AWS_REGION_ECR | docker login --username AWS --password-stdin $TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID.dkr.ecr.$TF_VAR_ENV_APP_GL_AWS_REGION_ECR.amazonaws.com
 
+    #lancement des containers
     docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
+
+    #plannification du backup toutes les 2 minutes
+    chmod +x $source_folder/backup.sh
+    grep "$source_folder/backup.sh" /etc/crontab || echo "*/2 * * * * $source_folder/backup.sh" >> /etc/crontab
 
 fi

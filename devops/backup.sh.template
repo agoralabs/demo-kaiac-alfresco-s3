@@ -1,0 +1,14 @@
+#!/bin/sh
+
+source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
+s3_bucket_backup=$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_S3_BUCKET
+# create a zip archive
+mkdir bkp
+cd $source_folder/data
+zip -r $source_folder/alfresco_data.zip .
+
+# push the files to S3
+aws s3 cp --recursive $source_folder/alfresco_data.zip s3://$s3_bucket_backup
+
+# delete the backup file
+rm -rf $source_folder/alfresco_data.zip
