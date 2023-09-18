@@ -20,7 +20,7 @@ else
   docker volume rm $(docker volume ls -q | grep alfresco_postgres)
 
   #deploiement de postgre
-  docker compose -f $source_folder/docker-compose.yml up postgres
+  docker compose -f $source_folder/docker-compose.yml up -d postgres
 
   #chargement du dump
   cat $source_folder/restore/pg-dump.sql | docker-compose exec -T postgres psql --username alfresco --password alfresco
