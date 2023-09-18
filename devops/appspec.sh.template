@@ -17,6 +17,12 @@ then
     mkdir -p $source_folder/data/solr-data
     chown 33007 $source_folder/data/solr-data
 
+    mkdir -p $source_folder/backup/solr/alfresco
+    chown 33007 $source_folder/backup/solr/alfresco
+
+    mkdir -p $source_folder/backup/solr/archive
+    chown 33007 $source_folder/backup/solr/archive
+
     mkdir -p $source_folder/data/postgres-data
     chown -R 999 $source_folder/data/postgres-data
 
@@ -35,14 +41,14 @@ then
     #plannification du backup toutes les 2 minutes
     chmod +x $source_folder/backup.sh
 
-    if [ $(crontab -l | grep "$source_folder/backup.sh") ] 
+    if [ $(crontab -l | grep "kaiac") ] 
     then
         echo "already scheduled"
     else
         echo "to be scheduled"
         crontab -l > tmpcron
         #echo new cron into cron file
-        echo "*/2 * * * * $source_folder/backup.sh >> $source_folder/backup.log 2>&1" >> tmpcron
+        echo "*/5 * * * * $source_folder/backup.sh >> $source_folder/backup.log 2>&1" >> tmpcron
         #install new cron file
         crontab tmpcron
         rm tmpcron

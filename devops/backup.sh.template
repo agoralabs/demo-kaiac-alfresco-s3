@@ -12,4 +12,15 @@ zip -r $source_folder/$data_file .
 #/usr/local/bin/aws s3 cp $source_folder/$data_file s3://$s3_bucket_backup/$data_file
 
 # delete the backup file
-rm -rf $source_folder/$data_file
+#rm -rf $source_folder/$data_file
+
+#Alfresco backup
+
+curl -u admin:admin "http://localhost/solr/alfresco/replication?command=backup&location=/opt/alfresco-search-services/backup/alfresco/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
+curl -u admin:admin "http://localhost/solr/archive/replication?command=backup&location=/opt/alfresco-search-services/backup/archive/&numberToKeep=1&wt=xml" -H "X-Alfresco-Search-Secret: nebjc6vb7u"
+
+#Postgres backup
+docker compose -f $source_folder/docker-compose.yml exec postgres pg_dump --username alfresco alfresco > $source_folder/backup/pg-dump.sql
+
+#Filesystem backup
+rsync -r $source_folder/data/alf-repo-data $source_folder/backup

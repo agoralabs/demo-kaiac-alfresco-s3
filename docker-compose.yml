@@ -38,8 +38,6 @@ services:
                 -Dsolr.baseUrl=/solr
                 -Dindex.subsystem.name=solr6
                 -Dsolr.sharedSecret=nebjc6vb7u  
-                -Dsolr.backup.archive.remoteBackupLocation=/opt/alfresco-search-services/solrhome
-                -Dsolr.backup.alfresco.remoteBackupLocation=/opt/alfresco-search-services/solrhome
                 -Dalfresco.host=${SERVER_NAME}
                 -Dalfresco.port=8080
                 -Dapi-explorer.url=http://${SERVER_NAME}:8080/api-explorer
@@ -158,7 +156,8 @@ services:
             "
         volumes: 
             - ./data/solr-data:/opt/alfresco-search-services/data   
-        
+            - ./backup/solr/alfresco:/opt/alfresco-search-services/backup/alfresco
+            - ./backup/solr/archive:/opt/alfresco-search-services/backup/archive
 
     
     activemq:

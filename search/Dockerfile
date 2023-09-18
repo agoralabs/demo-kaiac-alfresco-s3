@@ -67,3 +67,6 @@ RUN if [ "$ALFRESCO_COMMS" == "https" ] ; then \
   sed -i "'"s/alfresco.encryption.ssl.truststore.type=.*/alfresco.encryption.ssl.truststore.type=${TRUSTSTORE_TYPE}/g"'" ${DIST_DIR}/solrhome/templates/rerank/conf/solrcore.properties' \
   ${DIST_DIR}/solr/bin/search_config_setup.sh; \
 fi
+
+RUN mkdir /opt/alfresco-search-services/backup/alfresco/alfresco && chown 33007 /opt/alfresco-search-services/backup/alfresco/alfresco
+RUN mkdir /opt/alfresco-search-services/backup/archive/archive && chown 33007 /opt/alfresco-search-services/backup/archive/archive
