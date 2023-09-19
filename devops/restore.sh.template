@@ -38,7 +38,8 @@ else
 
   #restauration des données
   cp -r $source_folder/restore/alf-repo-data $source_folder/data
-
+  chown -R 33000 $source_folder/data/alf-repo-data
+  
   #lancement des containers
   docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
 
