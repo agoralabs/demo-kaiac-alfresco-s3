@@ -39,6 +39,12 @@ mkdir -p $source_folder/data/activemq-data
 chown -R 33031 $source_folder/data/activemq-data
 
 
+appenvsubstr $source_folder/devops/backup.sh.template $source_folder/backup.sh
+chmod 777 $source_folder/backup.sh
+
+appenvsubstr $source_folder/devops/restore.sh.template $source_folder/restore.sh
+chmod 777 $source_folder/restore.sh
+
 appenvsubstr $source_folder/devops/.env.template $source_folder/.env
 
 log_msg "Login into ecr..."
