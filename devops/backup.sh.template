@@ -2,7 +2,7 @@
 
 source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
 s3_bucket_backup="$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_S3_BUCKET"
-data_file="alfresco_backup.zip"
+data_file="$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_FILENAME"
 
 # Alfresco backup
 
