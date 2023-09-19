@@ -25,12 +25,12 @@ else
   docker compose -f $source_folder/docker-compose.yml up -d postgres
 
   #chargement du dump
-  #cat $source_folder/restore/pg-dump.sql | docker compose exec -T postgres psql --username alfresco --password alfresco
+  cat $source_folder/restore/pg-dump.sql | docker compose exec -T postgres psql --username alfresco --password alfresco
   #cat $source_folder/restore/pg-dump.sql | docker compose run postgres psql --username alfresco --password alfresco
 
-  docker cp $source_folder/restore/pg-dump.sql $(docker ps -q --filter name=postgres):/
+  #docker cp $source_folder/restore/pg-dump.sql $(docker ps -q --filter name=postgres):/
   #docker compose exec postgres $(psql --username alfresco --password alfresco < /pg-dump.sql)
-  docker compose exec postgres sh -c "PGPASSWORD=alfresco psql --username alfresco --password alfresco < /pg-dump.sql"
+  #docker compose exec postgres sh -c "PGPASSWORD=alfresco psql --username alfresco --password alfresco < /pg-dump.sql"
   #docker compose exec postgres sh -c "pg_restore --no-privileges --no-owner --dbname=postgresql://alfresco:alfresco@localhost:5432/alfresco /pg-dump.sql"
 
   #Arrêt de postgres
