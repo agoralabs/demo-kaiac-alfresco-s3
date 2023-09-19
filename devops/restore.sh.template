@@ -34,7 +34,7 @@ else
   #docker compose exec postgres sh -c "pg_restore --no-privileges --no-owner --dbname=postgresql://alfresco:alfresco@localhost:5432/alfresco /pg-dump.sql"
 
   #Arrêt de postgres
-  docker compose -f $source_folder/docker-compose.yml stop postgres
+  docker compose -f $source_folder/docker-compose.yml down
 
   #restauration des données
   cp -r $source_folder/restore/alf-repo-data $source_folder/data
