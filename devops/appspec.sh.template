@@ -12,6 +12,10 @@ auto_backup="$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_AUTO"
 
 auto_restore="$TF_VAR_ENV_APP_GL_DEVOPS_RESTORE_AUTO"
 
+aws_region="$TF_VAR_ENV_APP_GL_AWS_REGION_ECR"
+
+aws_accountid="$TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID"
+
 if [ "$SCRIPT_MODE" == "CLOUDOCKER" ]
 then
 
@@ -41,7 +45,7 @@ then
     chown -R 33031 $source_folder/data/activemq-data
 
     #connexion au repo docker AWS
-    aws ecr get-login-password --region $TF_VAR_ENV_APP_GL_AWS_REGION_ECR | docker login --username AWS --password-stdin $TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID.dkr.ecr.$TF_VAR_ENV_APP_GL_AWS_REGION_ECR.amazonaws.com
+    aws ecr get-login-password --region $aws_region | docker login --username AWS --password-stdin $aws_accountid.dkr.ecr.$aws_region.amazonaws.com
 
     if [ "$auto_backup" == "YES" ] 
     then

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
+FILE=$source_folder/docker-compose.yml
+
+if [ -f "$FILE" ]; then
+  # file exist
+
+  #lancement des containers
+  docker compose -f $source_folder/docker-compose.yml up -d
+
+fi
+

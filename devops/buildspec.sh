@@ -52,6 +52,9 @@ chmod 777 backup.sh
 appenvsubstr devops/restore.sh.template restore.sh
 chmod 777 restore.sh
 
+appenvsubstr devops/restart.sh.template restart.sh
+chmod 777 restart.sh
+
 if [ "$TF_VAR_ENV_APP_GL_SCRIPT_MODE" == "CLOUDOCKER" ] 
 then
 
