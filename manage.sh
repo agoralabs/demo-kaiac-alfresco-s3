@@ -1,162 +1,288 @@
 #!/bin/bash
 
-THE_DATE_START=$(date '+%Y-%m-%d %H:%M:%S')
-
 AWS_REGION="eu-west-3"
-PREFIX_TAG="backend-alfresco-"
-SLEEPTIME=10
-COMMAND=$1
+TAG_NAME="Deployment"
+TAG_VALUE_PREFIX="backend-alfresco-"
+ALFRESCO_URL="https://backend-alfresco-staging.skyscaledev.com/alfresco/"
+WAIT_INTERVAL=5
+P_COMMAND=$1
+
+function retrieve_instance_id(){
+    aws_region=$1
+    tag_name=$2
+    tag_value_prefix=$3
+    
+    instance_id=$(aws ec2 describe-instances --filters ''Name=tag:$tag_name,Values=$tag_value_prefix*'' \
+        --output text --query 'Reservations[*].Instances[*].InstanceId' --region $aws_region)
+    echo $instance_id
+}
+
+function remove_quotes(){
+    str=$1
+    str_no_quotes=$(sed -e 's/^"//' -e 's/"$//' <<<"$str")
+    echo $str_no_quotes
+}
+
+function start_automation_execution(){
+    aws_region=$1
+    ssm_document=$2
+    instance_id=$3
+
+    execution_id=$(aws ssm start-automation-execution --document-name "$ssm_document" --document-version "\$DEFAULT" \
+    --parameters "{\"InstanceId\":[\"$instance_id\"]}" --region $aws_region --query 'AutomationExecutionId')
+
+    execution_id=$(remove_quotes $execution_id)
+    echo $execution_id
+}
+
+function get_automation_execution(){
+    aws_region=$1
+    execution_id=$2
+    label=$3
+    interval=$4
+
+    STATUS="InProgress"
+
+    while [ "$STATUS" == "InProgress" ]
+    do
+        STATUS=$(aws ssm get-automation-execution --automation-execution-id "$execution_id" \
+        --region $aws_region --query 'AutomationExecution.AutomationExecutionStatus')
+
+        STATUS=$(remove_quotes $STATUS)
+        
+        echo "$label="$STATUS
+
+        sleep $interval
+    done
+
+}
+
+function send_kaiac_command(){
+    aws_region=$1
+    instance_id=$2
+    command_name=$3
+
+    command_id=$(aws ssm send-command --document-name "Kaiac_Command" --document-version "1" \
+    --targets "[{\"Key\":\"InstanceIds\",\"Values\":[\"$instance_id\"]}]" --parameters "{\"Command\":[\"$command_name\"]}" \
+    --timeout-seconds 600 --max-concurrency "50" --max-errors "0" --region $aws_region --query 'Command.CommandId')
+
+    command_id=$(remove_quotes $command_id)
+    echo $command_id
+}
+
+function get_command_invocation(){
+    aws_region=$1
+    command_id=$2
+    instance_id=$3
+    label=$4
+    interval=$5
+
+    STATUS="InProgress"
+
+    while [ "$STATUS" == "InProgress" ]
+    do
+        STATUS=$(aws ssm get-command-invocation --command-id "$command_id" \
+        --instance-id "$instance_id" --region $aws_region --query 'Status')
+
+        STATUS=$(remove_quotes $STATUS)
+
+        echo "$label="$STATUS
+
+        sleep $interval
+    done
+
+}
+
+function wait_alfresco_to_be_ready_old(){
+    alfresco_url=$1 # URL que vous souhaitez appeler
+    interval=$2 # Intervalle en secondes entre les messages
+
+    echo "WAITING ALFRESCO TO BE READY"
+    until $(curl --output /dev/null --silent --head --fail $alfresco_url); do
+        echo 'ALFRESCO IS READY'
+        sleep $interval
+    done
+}
+
+
+# Fonction pour afficher un message d'attente
+function afficher_attente() {
+    interval=$1 # Intervalle en secondes entre les messages
+    while true; do
+        echo "ALFRESCO_WEBSITE_STATUS=InProgress"
+        sleep $interval
+    done
+}
+
+function wait_alfresco_to_be_ready(){
+    alfresco_url=$1 # URL que vous souhaitez appeler
+    interval=$2 # Intervalle en secondes entre les messages
+
+    # Exécution de la fonction d'attente en arrière-plan
+    afficher_attente $interval &
+
+    # Stocker le PID du processus d'attente
+    pid_attente=$!
+
+    # Appel à l'URL
+    curl -s -o /dev/null $alfresco_url
+
+    # Tuer le processus d'attente
+    kill $pid_attente
+
+    # Vérification du code de retour de curl
+    if [ $? -eq 0 ]; then
+        echo "ALFRESCO_WEBSITE_STATUS=Success"
+        echo "L'appel à l'URL $alfresco_url a réussi."
+    else
+        echo "ALFRESCO_WEBSITE_STATUS=Failed"
+        echo "L'appel à l'URL $alfresco_url a échoué."
+    fi
+}
+
+# Fonction pour afficher le menu d'options
+afficher_menu() {
+    echo "Menu d'options :"
+    echo "1. Option STOP"
+    echo "2. Option START"
+    echo "3. Option RESTORE"
+    echo "4. Option BACKUP"
+    echo "5. Quitter"
+}
+
+
+get_date_seconds(){
+    SECS=$(date '+%s')
+    echo $SECS
+}
+
+show_duration(){
+    p_start=$1
+    THE_DATE_END=$(get_date_seconds)
+    duree=$((THE_DATE_END - p_start))
+    printf "Le traitement a pris "
+    printf '%dh:%dm:%ds\n' $((duree/3600)) $((duree%3600/60)) $((duree%60))
+}
+
+# Fonction pour exécuter l'option 1
+executer_STOP() {
+    THE_DATE_START=$(get_date_seconds)
+
+    instance_id=$1
+    echo "Vous avez choisi de stopper votre instance ALFRESCO."
+    # Stop EC2 instance
+    EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StopEC2Instance" $instance_id)
+    echo "EXECUTION_ID="$EXECUTION_ID
+    get_automation_execution $AWS_REGION $EXECUTION_ID "STOPPING_STATUS" $WAIT_INTERVAL
+    
+    show_duration $THE_DATE_START
+}
+
+# Fonction pour exécuter l'option 2
+executer_START() {
+    THE_DATE_START=$(get_date_seconds)
+
+    instance_id=$1
+    echo "Vous avez choisi de démarrer votre instance ALFRESCO."
+    # Ajoutez ici le code pour exécuter l'option 
+        # Start EC2 instance
+    EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
+    echo "EXECUTION_ID="$EXECUTION_ID
+    get_automation_execution $AWS_REGION $EXECUTION_ID "STARTING_STATUS" $WAIT_INTERVAL
+
+    # Start Alfresco
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restart")
+    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+    get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "DOCKER_START_STATUS" $WAIT_INTERVAL
+
+    wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
+ 
+    show_duration $THE_DATE_START
+}
+
+# Fonction pour exécuter l'option 3
+executer_RESTORE() {
+    THE_DATE_START=$(get_date_seconds)
+
+    instance_id=$1
+    echo "Vous avez choisi de restaurer vos données ALFRESCO."
+    # Restore Alfresco
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
+    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+    get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
+
+    wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
+
+    show_duration $THE_DATE_START
+}
+
+# Fonction pour exécuter l'option 4
+executer_BACKUP() {
+    THE_DATE_START=$(get_date_seconds)
+
+    instance_id=$1
+    echo "Vous avez choisi de sauvegarder vos données ALFRESCO."
+    # BACKUP Alfresco
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "backup")
+    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+
+    get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_BACKUP_STATUS" $WAIT_INTERVAL
+
+    show_duration $THE_DATE_START
+}
 
 # Retrieve EC2 INSTANCE ID
-INSTANCE_ID=$(aws ec2 describe-instances --filters ''Name=tag:Deployment,Values=$PREFIX_TAG*'' \
-  --output text --query 'Reservations[*].Instances[*].InstanceId' --region $AWS_REGION)
+INSTANCE_ID=$(retrieve_instance_id $AWS_REGION $TAG_NAME $TAG_VALUE_PREFIX)
 
 
 if [ -z "$INSTANCE_ID" ]
 then
-      echo "No instance id found with prefix $PREFIX_TAG in $AWS_REGION region"
-      exit 127
-else
-      echo "Instance $INSTANCE_ID found"
+      echo "No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region"
+      exit 127      
 fi
 
-if [ "$COMMAND" == "STOP" ]
+if [ "$P_COMMAND" == "STOP" ]
 then
-
-#https://eu-west-3.console.aws.amazon.com/systems-manager/automation/execute/AWS-StopEC2Instance?region=eu-west-3#InstanceId=i-0e6e1fcee3521a8e2
-
-    EXECUTION_ID=$(aws ssm start-automation-execution --document-name "AWS-StopEC2Instance" --document-version "\$DEFAULT" \
-    --parameters "{\"InstanceId\":[\"$INSTANCE_ID\"]}" --region $AWS_REGION --query 'AutomationExecutionId')
-
-    EXECUTION_ID=$(sed -e 's/^"//' -e 's/"$//' <<<"$EXECUTION_ID")
-    echo "EXECUTION_ID="$EXECUTION_ID
-
-    STOPPING_STATUS="InProgress"
-
-    while [ "$STOPPING_STATUS" == "InProgress" ]
-    do
-        STOPPING_STATUS=$(aws ssm get-automation-execution --automation-execution-id "$EXECUTION_ID" \
-        --region $AWS_REGION --query 'AutomationExecution.AutomationExecutionStatus')
-
-        STOPPING_STATUS=$(sed -e 's/^"//' -e 's/"$//' <<<"$STOPPING_STATUS")
-
-        echo "STOPPING_STATUS="$STOPPING_STATUS
-
-        sleep $SLEEPTIME
-    done
-
-    echo "ALFRESCO INSTANCE STOPPED"
+    executer_STOP $INSTANCE_ID
+    exit
 fi
 
-
-if [ "$COMMAND" == "START" ]
+if [ "$P_COMMAND" == "START" ]
 then
-
-    # Start EC2 instance
-#https://eu-west-3.console.aws.amazon.com/systems-manager/automation/execute/AWS-StartEC2Instance?region=eu-west-3#InstanceId=i-0e6e1fcee3521a8e2
-
-    EXECUTION_ID=$(aws ssm start-automation-execution --document-name "AWS-StartEC2Instance" --document-version "\$DEFAULT" \
-    --parameters "{\"InstanceId\":[\"$INSTANCE_ID\"]}" --region $AWS_REGION --query 'AutomationExecutionId')
-
-    EXECUTION_ID=$(sed -e 's/^"//' -e 's/"$//' <<<"$EXECUTION_ID")
-    echo "EXECUTION_ID="$EXECUTION_ID
-
-    STARTING_STATUS="InProgress"
-
-    while [ "$STARTING_STATUS" == "InProgress" ]
-    do
-        STARTING_STATUS=$(aws ssm get-automation-execution --automation-execution-id "$EXECUTION_ID" \
-        --region $AWS_REGION --query 'AutomationExecution.AutomationExecutionStatus')
-
-        STARTING_STATUS=$(sed -e 's/^"//' -e 's/"$//' <<<"$STARTING_STATUS")
-
-        echo "STARTING_STATUS="$STARTING_STATUS
-
-        sleep $SLEEPTIME
-    done
-
-    echo "ALFRESCO INSTANCE STARTED"
-
-    # Start Alfresco
-    RUNCOMMAND_ID=$(aws ssm send-command --document-name "Kaiac_Command" --document-version "1" \
-    --targets "[{\"Key\":\"InstanceIds\",\"Values\":[\"$INSTANCE_ID\"]}]" --parameters "{\"Command\":[\"restart\"]}" \
-    --timeout-seconds 600 --max-concurrency "50" --max-errors "0" --region $AWS_REGION --query 'Command.CommandId')
-    
-    RUNCOMMAND_ID=$(sed -e 's/^"//' -e 's/"$//' <<<"$RUNCOMMAND_ID")
-    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
-
-    
-    ALFRESCO_START_STATUS="InProgress"
-
-    while [ "$ALFRESCO_START_STATUS" == "InProgress" ]
-    do
-        ALFRESCO_START_STATUS=$(aws ssm get-command-invocation --command-id "$RUNCOMMAND_ID" \
-        --instance-id "$INSTANCE_ID" --region $AWS_REGION --query 'Status')
-
-        ALFRESCO_START_STATUS=$(sed -e 's/^"//' -e 's/"$//' <<<"$ALFRESCO_START_STATUS")
-
-        echo "ALFRESCO_START_STATUS="$ALFRESCO_START_STATUS
-
-        sleep $SLEEPTIME
-    done
-
+    executer_START $INSTANCE_ID
+    exit
 fi
 
-if [ "$COMMAND" == "RESTORE" ]
+if [ "$P_COMMAND" == "RESTORE" ]
 then
-
-    # Restore Alfresco
-    RUNCOMMAND_ID=$(aws ssm send-command --document-name "Kaiac_Command" --document-version "1" \
-    --targets "[{\"Key\":\"InstanceIds\",\"Values\":[\"$INSTANCE_ID\"]}]" --parameters "{\"Command\":[\"restore\"]}" \
-    --timeout-seconds 600 --max-concurrency "50" --max-errors "0" --region $AWS_REGION --query 'Command.CommandId')
-    
-    RUNCOMMAND_ID=$(sed -e 's/^"//' -e 's/"$//' <<<"$RUNCOMMAND_ID")
-    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
-
-    ALFRESCO_RESTORE_STATUS="InProgress"
-
-    while [ "$ALFRESCO_RESTORE_STATUS" == "InProgress" ]
-    do
-        ALFRESCO_RESTORE_STATUS=$(aws ssm get-command-invocation --command-id "$RUNCOMMAND_ID" \
-        --instance-id "$INSTANCE_ID" --region $AWS_REGION --query 'Status')
-
-        ALFRESCO_RESTORE_STATUS=$(sed -e 's/^"//' -e 's/"$//' <<<"$ALFRESCO_RESTORE_STATUS")
-
-        echo "ALFRESCO_RESTORE_STATUS="$ALFRESCO_RESTORE_STATUS
-
-        sleep $SLEEPTIME
-    done
-
+    executer_RESTORE $INSTANCE_ID
+    exit
 fi
 
-
-if [ "$COMMAND" == "BACKUP" ]
+if [ "$P_COMMAND" == "BACKUP" ]
 then
-
-    # BACKUP Alfresco
-    RUNCOMMAND_ID=$(aws ssm send-command --document-name "Kaiac_Command" --document-version "1" \
-    --targets "[{\"Key\":\"InstanceIds\",\"Values\":[\"$INSTANCE_ID\"]}]" --parameters "{\"Command\":[\"backup\"]}" \
-    --timeout-seconds 600 --max-concurrency "50" --max-errors "0" --region $AWS_REGION --query 'Command.CommandId')
-    
-    RUNCOMMAND_ID=$(sed -e 's/^"//' -e 's/"$//' <<<"$RUNCOMMAND_ID")
-    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
-
-    ALFRESCO_BACKUP_STATUS="InProgress"
-
-    while [ "$ALFRESCO_BACKUP_STATUS" == "InProgress" ]
-    do
-        ALFRESCO_BACKUP_STATUS=$(aws ssm get-command-invocation --command-id "$RUNCOMMAND_ID" \
-        --instance-id "$INSTANCE_ID" --region $AWS_REGION --query 'Status')
-
-        ALFRESCO_BACKUP_STATUS=$(sed -e 's/^"//' -e 's/"$//' <<<"$ALFRESCO_BACKUP_STATUS")
-
-        echo "ALFRESCO_BACKUP_STATUS="$ALFRESCO_BACKUP_STATUS
-
-        sleep $SLEEPTIME
-    done
-
+    executer_BACKUP $INSTANCE_ID
+    exit
 fi
 
-THE_DATE_END=$(date '+%Y-%m-%d %H:%M:%S')
-echo "# Start : $THE_DATE_START"
-echo "# End : $THE_DATE_END"
+# Afficher le menu initial
+afficher_menu
+
+# Demander à l'utilisateur de choisir une option
+while true; do
+    read -p "Choisissez une option (1-5) : " choix
+
+    case $choix in
+        1) executer_STOP $INSTANCE_ID ;;
+        2) executer_START $INSTANCE_ID ;;
+        3) executer_RESTORE $INSTANCE_ID ;;
+        4) executer_BACKUP $INSTANCE_ID ;;
+        5) echo "Au revoir !" ; exit ;;
+        *) echo "Option invalide. Veuillez choisir une option valide (1-5)." ;;
+    esac
+
+    # Afficher à nouveau le menu
+    afficher_menu
+done
+
+
