@@ -16,6 +16,8 @@ aws_region="$TF_VAR_ENV_APP_GL_AWS_REGION_ECR"
 
 aws_accountid="$TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID"
 
+docker_repository="$TF_VAR_ENV_APP_GL_DOCKER_REPOSITORY"
+
 if [ "$SCRIPT_MODE" == "CLOUDOCKER" ]
 then
 
@@ -45,7 +47,13 @@ then
     chown -R 33031 $source_folder/data/activemq-data
 
     #connexion au repo docker AWS
-    aws ecr get-login-password --region $aws_region | docker login --username AWS --password-stdin $aws_accountid.dkr.ecr.$aws_region.amazonaws.com
+    if [ "$docker_repository" == "docker.io" ] 
+    then
+        docker login
+    else
+        aws ecr get-login-password --region $aws_region | docker login --username AWS --password-stdin $aws_accountid.dkr.ecr.$aws_region.amazonaws.com
+    fi
+    
 
     if [ "$auto_backup" == "YES" ] 
     then

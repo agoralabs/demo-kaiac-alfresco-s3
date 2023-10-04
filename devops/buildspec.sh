@@ -39,7 +39,8 @@ appenvsubstr(){
     | envsubst '$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_S3_BUCKET' \
     | envsubst '$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_FILENAME' \
     | envsubst '$TF_VAR_ENV_APP_GL_DEVOPS_BACKUP_AUTO' \
-    | envsubst '$TF_VAR_ENV_APP_GL_DEVOPS_RESTORE_AUTO' > $p_destination
+    | envsubst '$TF_VAR_ENV_APP_GL_DEVOPS_RESTORE_AUTO' \
+    | envsubst '$TF_VAR_ENV_APP_GL_DOCKER_REPOSITORY' > $p_destination
 }
 
 appenvsubstr devops/appspec.yml.template appspec.yml

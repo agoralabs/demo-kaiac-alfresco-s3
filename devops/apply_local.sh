@@ -4,6 +4,7 @@ THE_DATE=$(date '+%Y-%m-%d %H:%M:%S')
 echo "Build started on $THE_DATE"
 
 source_folder=$TF_VAR_ENV_APP_BE_LOCAL_SOURCE_FOLDER
+docker_repository="$TF_VAR_ENV_APP_GL_DOCKER_REPOSITORY"
 
 # mkdir -p $source_folder/tmp
 # chmod 777 $source_folder/tmp
@@ -48,6 +49,13 @@ chmod 777 $source_folder/restore.sh
 appenvsubstr $source_folder/devops/.env.template $source_folder/.env
 
 log_msg "Login into ecr..."
-aws ecr get-login-password --region $TF_VAR_ENV_APP_GL_AWS_REGION_ECR | docker login --username AWS --password-stdin $TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID.dkr.ecr.$TF_VAR_ENV_APP_GL_AWS_REGION_ECR.amazonaws.com
+
+if [ "$docker_repository" == "docker.io" ] 
+then
+    docker login
+else
+    aws ecr get-login-password --region $TF_VAR_ENV_APP_GL_AWS_REGION_ECR | docker login --username AWS --password-stdin $TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID.dkr.ecr.$TF_VAR_ENV_APP_GL_AWS_REGION_ECR.amazonaws.com
+fi
+
 log_msg "Run docker compose..."
 docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
