@@ -7,12 +7,19 @@ ALFRESCO_URL="https://backend-alfresco-staging.skyscaledev.com/alfresco/"
 WAIT_INTERVAL=5
 P_COMMAND=$1
 
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+YELLOW_BG='\033[0;103m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
 function retrieve_instance_id(){
     aws_region=$1
     tag_name=$2
     tag_value_prefix=$3
-    
-    instance_id=$(aws ec2 describe-instances --filters ''Name=tag:$tag_name,Values=$tag_value_prefix*'' \
+
+    instance_id=$(aws ec2 describe-instances --filters ''Name=tag:$tag_name,Values=$tag_value_prefix* Name=instance-state-name,Values=running,pending,stopped'' \
         --output text --query 'Reservations[*].Instances[*].InstanceId' --region $aws_region)
     echo $instance_id
 }
@@ -142,14 +149,19 @@ function wait_alfresco_to_be_ready(){
 
 # Fonction pour afficher le menu d'options
 afficher_menu() {
-    echo "Menu d'options :"
-    echo "1. Option STOP"
-    echo "2. Option START"
-    echo "3. Option RESTORE"
-    echo "4. Option BACKUP"
-    echo "5. Quitter"
+    echo -e "${BLUE}OPTIONS :${NC}"
+    echo -e "${BLUE}1${NC}. STOP"
+    echo -e "${BLUE}2${NC}. START"
+    echo -e "${BLUE}3${NC}. RESTORE"
+    echo -e "${BLUE}4${NC}. BACKUP"
+    echo -e "${BLUE}5${NC}. START & RESTORE"
+    echo -e "${BLUE}6${NC}. Quitter"
 }
 
+show_title() {
+    title=$1
+    echo -e "${GREEN}$title${NC}"
+}
 
 get_date_seconds(){
     SECS=$(date '+%s')
@@ -161,7 +173,9 @@ show_duration(){
     THE_DATE_END=$(get_date_seconds)
     duree=$((THE_DATE_END - p_start))
     printf "Le traitement a pris "
+    printf ${RED}
     printf '%dh:%dm:%ds\n' $((duree/3600)) $((duree%3600/60)) $((duree%60))
+    printf ${NC}
 }
 
 # Fonction pour exécuter l'option 1
@@ -169,7 +183,7 @@ executer_STOP() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
-    echo "Vous avez choisi de stopper votre instance ALFRESCO."
+    show_title "Vous avez choisi de stopper votre instance ALFRESCO."
     # Stop EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StopEC2Instance" $instance_id)
     echo "EXECUTION_ID="$EXECUTION_ID
@@ -183,9 +197,8 @@ executer_START() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
-    echo "Vous avez choisi de démarrer votre instance ALFRESCO."
-    # Ajoutez ici le code pour exécuter l'option 
-        # Start EC2 instance
+    show_title "Vous avez choisi de démarrer votre instance ALFRESCO."
+    # Start EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
     echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STARTING_STATUS" $WAIT_INTERVAL
@@ -205,7 +218,7 @@ executer_RESTORE() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
-    echo "Vous avez choisi de restaurer vos données ALFRESCO."
+    show_title "Vous avez choisi de restaurer vos données ALFRESCO."
     # Restore Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
     echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
@@ -221,12 +234,34 @@ executer_BACKUP() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
-    echo "Vous avez choisi de sauvegarder vos données ALFRESCO."
+    show_title "Vous avez choisi de sauvegarder vos données ALFRESCO."
     # BACKUP Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "backup")
     echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
 
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_BACKUP_STATUS" $WAIT_INTERVAL
+
+    show_duration $THE_DATE_START
+}
+
+
+# Fonction pour exécuter l'option 5
+executer_START_RESTORE() {
+    THE_DATE_START=$(get_date_seconds)
+
+    instance_id=$1
+    show_title "Vous avez choisi de redémarrer l'instance et restaurer vos données ALFRESCO."
+    # Start EC2 instance
+    EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
+    echo "EXECUTION_ID="$EXECUTION_ID
+    get_automation_execution $AWS_REGION $EXECUTION_ID "STARTING_STATUS" $WAIT_INTERVAL
+
+    # Restore Alfresco
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
+    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+    get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
+
+    wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
 
     show_duration $THE_DATE_START
 }
@@ -265,20 +300,27 @@ then
     exit
 fi
 
+if [ "$P_COMMAND" == "START_RESTORE" ]
+then
+    executer_START_RESTORE $INSTANCE_ID
+    exit
+fi
+
 # Afficher le menu initial
 afficher_menu
 
 # Demander à l'utilisateur de choisir une option
 while true; do
-    read -p "Choisissez une option (1-5) : " choix
+    read -p "Choisissez une option (1-6) : " choix
 
     case $choix in
         1) executer_STOP $INSTANCE_ID ;;
         2) executer_START $INSTANCE_ID ;;
         3) executer_RESTORE $INSTANCE_ID ;;
         4) executer_BACKUP $INSTANCE_ID ;;
-        5) echo "Au revoir !" ; exit ;;
-        *) echo "Option invalide. Veuillez choisir une option valide (1-5)." ;;
+        5) executer_START_RESTORE $INSTANCE_ID ;;
+        6) echo "Au revoir !" ; exit ;;
+        *) echo "Option invalide. Veuillez choisir une option valide (1-6)." ;;
     esac
 
     # Afficher à nouveau le menu
