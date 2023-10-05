@@ -4,8 +4,10 @@ AWS_REGION="eu-west-3"
 TAG_NAME="Deployment"
 TAG_VALUE_PREFIX="backend-alfresco-"
 ALFRESCO_URL="https://backend-alfresco-staging.skyscaledev.com/alfresco/"
+API_SEND_COMMAND_URL="https://lambda.skyscaledev.com/send_command"
 WAIT_INTERVAL=5
 P_COMMAND=$1
+CLI_MODE="API"
 
 BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
@@ -14,7 +16,19 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-function retrieve_instance_id(){
+
+function retrieve_instance_id_api(){
+    aws_region=$1
+    tag_name=$2
+    tag_value_prefix=$3
+
+    instance_id=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
+        --header 'Content-Type: application/json' \
+        --data '{"command": "GET_INSTANCE_ID"}' | jq -r '.instanceId')
+    echo $instance_id
+}
+
+function retrieve_instance_id_aws(){
     aws_region=$1
     tag_name=$2
     tag_value_prefix=$3
@@ -24,13 +38,41 @@ function retrieve_instance_id(){
     echo $instance_id
 }
 
+function retrieve_instance_id(){
+    aws_region=$1
+    tag_name=$2
+    tag_value_prefix=$3
+
+    if [ "$CLI_MODE" == "API" ]
+    then
+        retrieve_instance_id_api $aws_region $tag_name $tag_value_prefix
+    else
+        retrieve_instance_id_aws $aws_region $tag_name $tag_value_prefix
+    fi
+}
+
+
 function remove_quotes(){
     str=$1
     str_no_quotes=$(sed -e 's/^"//' -e 's/"$//' <<<"$str")
     echo $str_no_quotes
 }
 
-function start_automation_execution(){
+function start_automation_execution_api(){
+    aws_region=$1
+    ssm_document=$2
+    instance_id=$3
+
+    execution_id=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
+    --header 'Content-Type: application/json' \
+    --data "{\"command\": \"START_SSM_AUTOMATION\",
+        \"instanceId\": \"$instance_id\",
+        \"ssmDocument\": \"$ssm_document\"}" | jq -r '.executionId')
+
+    echo $execution_id
+}
+
+function start_automation_execution_aws(){
     aws_region=$1
     ssm_document=$2
     instance_id=$3
@@ -42,7 +84,43 @@ function start_automation_execution(){
     echo $execution_id
 }
 
-function get_automation_execution(){
+function start_automation_execution(){
+    aws_region=$1
+    ssm_document=$2
+    instance_id=$3
+
+    if [ "$CLI_MODE" == "API" ]
+    then
+        start_automation_execution_api $aws_region $ssm_document $instance_id
+    else
+        start_automation_execution_aws $aws_region $ssm_document $instance_id
+    fi
+}
+
+function get_automation_execution_api(){
+    aws_region=$1
+    execution_id=$2
+    label=$3
+    interval=$4
+
+    STATUS="InProgress"
+
+    while [ "$STATUS" == "InProgress" ]
+    do
+
+        STATUS=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
+            --header 'Content-Type: application/json' \
+            --data "{\"command\": \"STATUS_SSM_AUTOMATION\",
+                \"executionId\": \"$execution_id\"}" | jq -r '.executionStatus')
+        
+        echo "$label="$STATUS
+
+        sleep $interval
+    done
+
+}
+
+function get_automation_execution_aws(){
     aws_region=$1
     execution_id=$2
     label=$3
@@ -64,7 +142,36 @@ function get_automation_execution(){
 
 }
 
-function send_kaiac_command(){
+function get_automation_execution(){
+    aws_region=$1
+    execution_id=$2
+    label=$3
+    interval=$4
+
+    if [ "$CLI_MODE" == "API" ]
+    then
+        get_automation_execution_api $aws_region $execution_id $label $interval
+    else
+        get_automation_execution_aws $aws_region $execution_id $label $interval
+    fi
+
+}
+
+function send_kaiac_command_api(){
+    aws_region=$1
+    instance_id=$2
+    command_name=$3
+
+    command_id=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
+        --header 'Content-Type: application/json' \
+        --data "{\"command\": \"SEND_KAIAC_COMMAND\",
+            \"instanceId\": \"$instance_id\",
+            \"kaiacCommand\": \"$command_name\"}" | jq -r '.commandId')
+
+    echo $command_id
+}
+
+function send_kaiac_command_aws(){
     aws_region=$1
     instance_id=$2
     command_name=$3
@@ -77,7 +184,49 @@ function send_kaiac_command(){
     echo $command_id
 }
 
-function get_command_invocation(){
+function send_kaiac_command(){
+    aws_region=$1
+    instance_id=$2
+    command_name=$3
+
+    if [ "$CLI_MODE" == "API" ]
+    then
+        send_kaiac_command_api $aws_region $instance_id $command_name
+    else
+        send_kaiac_command_aws $aws_region $instance_id $command_name
+    fi
+}
+
+
+
+function get_command_invocation_api(){
+    aws_region=$1
+    command_id=$2
+    instance_id=$3
+    label=$4
+    interval=$5
+
+    STATUS="InProgress"
+
+    while [ "$STATUS" == "InProgress" ]
+    do
+
+        STATUS=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
+        --header 'Content-Type: application/json' \
+        --data "{
+            \"command\": \"STATUS_KAIAC_COMMAND\",
+            \"instanceId\":\"$instance_id\",
+            \"commandId\": \"$command_id\"
+            }"  | jq -r '.commandStatus')
+
+        echo "$label="$STATUS
+
+        sleep $interval
+    done
+
+}
+
+function get_command_invocation_aws(){
     aws_region=$1
     command_id=$2
     instance_id=$3
@@ -97,6 +246,22 @@ function get_command_invocation(){
 
         sleep $interval
     done
+
+}
+
+function get_command_invocation(){
+    aws_region=$1
+    command_id=$2
+    instance_id=$3
+    label=$4
+    interval=$5
+
+    if [ "$CLI_MODE" == "API" ]
+    then
+        get_command_invocation_api $aws_region $command_id $instance_id $label $interval
+    else
+        get_command_invocation_aws $aws_region $command_id $instance_id $label $interval
+    fi
 
 }
 
@@ -186,7 +351,7 @@ executer_STOP() {
     show_title "Vous avez choisi de stopper votre instance ALFRESCO."
     # Stop EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StopEC2Instance" $instance_id)
-    echo "EXECUTION_ID="$EXECUTION_ID
+    #echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STOPPING_STATUS" $WAIT_INTERVAL
     
     show_duration $THE_DATE_START
@@ -200,12 +365,12 @@ executer_START() {
     show_title "Vous avez choisi de démarrer votre instance ALFRESCO."
     # Start EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
-    echo "EXECUTION_ID="$EXECUTION_ID
+    #echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STARTING_STATUS" $WAIT_INTERVAL
 
     # Start Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restart")
-    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "DOCKER_START_STATUS" $WAIT_INTERVAL
 
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
@@ -221,7 +386,7 @@ executer_RESTORE() {
     show_title "Vous avez choisi de restaurer vos données ALFRESCO."
     # Restore Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
-    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
 
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
@@ -237,7 +402,7 @@ executer_BACKUP() {
     show_title "Vous avez choisi de sauvegarder vos données ALFRESCO."
     # BACKUP Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "backup")
-    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
 
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_BACKUP_STATUS" $WAIT_INTERVAL
 
@@ -253,12 +418,12 @@ executer_START_RESTORE() {
     show_title "Vous avez choisi de redémarrer l'instance et restaurer vos données ALFRESCO."
     # Start EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
-    echo "EXECUTION_ID="$EXECUTION_ID
+    #echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STARTING_STATUS" $WAIT_INTERVAL
 
     # Restore Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
-    echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
+    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
 
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
