@@ -2,7 +2,7 @@
 
 AWS_REGION="eu-west-3"
 TAG_NAME="Deployment"
-TAG_VALUE_PREFIX="backend-alfresco-"
+TAG_VALUE_PREFIX="backend-alfresco-*"
 ALFRESCO_URL="https://backend-alfresco-staging.skyscaledev.com/alfresco/"
 API_SEND_COMMAND_URL="https://lambda.skyscaledev.com/send_command"
 WAIT_INTERVAL=5
@@ -36,7 +36,7 @@ function retrieve_instance_id_aws(){
     tag_name=$2
     tag_value_prefix=$3
 
-    instance_id=$(aws ec2 describe-instances --filters ''Name=tag:$tag_name,Values=$tag_value_prefix* Name=instance-state-name,Values=running,pending,stopped'' \
+    instance_id=$(aws ec2 describe-instances --filters ''Name=tag:$tag_name,Values=$tag_value_prefix Name=instance-state-name,Values=running,pending,stopped'' \
         --output text --query 'Reservations[*].Instances[*].InstanceId' --region $aws_region)
     echo $instance_id
 }
@@ -54,13 +54,20 @@ function retrieve_instance_id(){
     fi
 }
 
+function show_final_result(){
+    result_to_show=$1
+    echo -e ${YELLOW_BG}
+    echo "$result_to_show"
+    echo -e ${NC}
+}
+
 check_instance_status(){
     instance_status=$1
     if [ -z "$instance_status" ]
     then
-        echo "No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region"
+        echo "${YELLOW_BG}No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region${NC}"
     else
-        echo "Statut de l'instance : "$instance_status      
+        echo -e "${YELLOW_BG}Statut de l'instance : ${instance_status}${NC}"      
     fi
 }
 
@@ -87,6 +94,7 @@ function retrieve_instance_status_aws(){
 
     instance_status=$(aws ec2 describe-instances --filters ''Name=tag:$tag_name,Values=$tag_value_prefix* Name=instance-state-name,Values=running,pending,stopped'' \
         --output text --query 'Reservations[*].Instances[*].State.Name' --region $aws_region)
+
     check_instance_status $instance_status
 }
 
@@ -360,10 +368,10 @@ function wait_alfresco_to_be_ready(){
     # Vérification du code de retour de curl
     if [ $? -eq 0 ]; then
         echo "ALFRESCO_WEBSITE_STATUS=Success"
-        echo "L'appel à l'URL $alfresco_url a réussi."
+        echo -e "${YELLOW_BG}L'appel à l'URL $alfresco_url a réussi.${NC}"
     else
         echo "ALFRESCO_WEBSITE_STATUS=Failed"
-        echo "L'appel à l'URL $alfresco_url a échoué."
+        echo -e "${YELLOW_BG}L'appel à l'URL $alfresco_url a échoué.${NC}"
     fi
 }
 
@@ -399,6 +407,9 @@ show_duration(){
     printf ${NC}
 }
 
+
+
+
 check_instance_id(){
     instance_id=$1
     if [ -z "$instance_id" ]
@@ -422,6 +433,8 @@ executer_STOP() {
     #echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STOPPING_STATUS" $WAIT_INTERVAL
     
+    echo -e "${YELLOW_BG}Arrêt terminé${NC}"
+
     show_duration $THE_DATE_START
 }
 
@@ -443,6 +456,8 @@ executer_START() {
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restart")
     #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "DOCKER_START_STATUS" $WAIT_INTERVAL
+    
+    echo -e "${YELLOW_BG}Démarrage terminé${NC}"
 
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
  
@@ -463,6 +478,8 @@ executer_RESTORE() {
     #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
 
+    echo -e "${YELLOW_BG}Restore terminé${NC}"
+
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
 
     show_duration $THE_DATE_START
@@ -482,6 +499,8 @@ executer_BACKUP() {
     #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
 
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_BACKUP_STATUS" $WAIT_INTERVAL
+
+    echo -e "${YELLOW_BG}Backup terminé${NC}"
 
     show_duration $THE_DATE_START
 }
