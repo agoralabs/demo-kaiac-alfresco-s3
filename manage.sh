@@ -54,6 +54,54 @@ function retrieve_instance_id(){
     fi
 }
 
+check_instance_status(){
+    instance_status=$1
+    if [ -z "$instance_status" ]
+    then
+        echo "No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region"
+    else
+        echo "Statut de l'instance : "$instance_status      
+    fi
+}
+
+function retrieve_instance_status_api(){
+    aws_region=$1
+    tag_name=$2
+    tag_value_prefix=$3
+
+    instance_status=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
+        --header 'Content-Type: application/json' \
+        --data "{\"command\": \"GET_INSTANCE_STATUS\",
+                    \"awsRegion\": \"$aws_region\",
+                    \"tagName\": \"$tag_name\",
+                    \"tagPrefixValue\": \"$tag_value_prefix\"}" | jq -r '.instanceStatus')
+    
+
+    check_instance_status $instance_status
+}
+
+function retrieve_instance_status_aws(){
+    aws_region=$1
+    tag_name=$2
+    tag_value_prefix=$3
+
+    instance_status=$(aws ec2 describe-instances --filters ''Name=tag:$tag_name,Values=$tag_value_prefix* Name=instance-state-name,Values=running,pending,stopped'' \
+        --output text --query 'Reservations[*].Instances[*].State.Name' --region $aws_region)
+    check_instance_status $instance_status
+}
+
+function retrieve_instance_status(){
+    aws_region=$1
+    tag_name=$2
+    tag_value_prefix=$3
+
+    if [ "$CLI_MODE" == "API" ]
+    then
+        retrieve_instance_status_api $aws_region $tag_name $tag_value_prefix
+    else
+        retrieve_instance_status_aws $aws_region $tag_name $tag_value_prefix
+    fi
+}
 
 function remove_quotes(){
     str=$1
@@ -327,7 +375,8 @@ afficher_menu() {
     echo -e "${BLUE}3${NC}. RESTORE"
     echo -e "${BLUE}4${NC}. BACKUP"
     echo -e "${BLUE}5${NC}. START & RESTORE"
-    echo -e "${BLUE}6${NC}. Quitter"
+    echo -e "${BLUE}6${NC}. STATUS"
+    echo -e "${BLUE}7${NC}. Quitter"
 }
 
 show_title() {
@@ -350,11 +399,23 @@ show_duration(){
     printf ${NC}
 }
 
+check_instance_id(){
+    instance_id=$1
+    if [ -z "$instance_id" ]
+    then
+        echo "No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region"
+        exit 127      
+    fi
+}
+
 # Fonction pour exécuter l'option 1
 executer_STOP() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
+
+    check_instance_id $instance_id
+
     show_title "Vous avez choisi de stopper votre instance ALFRESCO."
     # Stop EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StopEC2Instance" $instance_id)
@@ -369,6 +430,9 @@ executer_START() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
+
+    check_instance_id $instance_id
+
     show_title "Vous avez choisi de démarrer votre instance ALFRESCO."
     # Start EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
@@ -390,6 +454,9 @@ executer_RESTORE() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
+
+    check_instance_id $instance_id
+
     show_title "Vous avez choisi de restaurer vos données ALFRESCO."
     # Restore Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
@@ -406,6 +473,9 @@ executer_BACKUP() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
+
+    check_instance_id $instance_id
+
     show_title "Vous avez choisi de sauvegarder vos données ALFRESCO."
     # BACKUP Alfresco
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "backup")
@@ -422,6 +492,9 @@ executer_START_RESTORE() {
     THE_DATE_START=$(get_date_seconds)
 
     instance_id=$1
+
+    check_instance_id $instance_id
+
     show_title "Vous avez choisi de redémarrer l'instance et restaurer vos données ALFRESCO."
     # Start EC2 instance
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
@@ -438,15 +511,18 @@ executer_START_RESTORE() {
     show_duration $THE_DATE_START
 }
 
+# Fonction pour exécuter l'option 6
+executer_STATUS() {
+    THE_DATE_START=$(get_date_seconds)
+
+    # Retrieve EC2 INSTANCE STATUS
+    retrieve_instance_status $AWS_REGION $TAG_NAME $TAG_VALUE_PREFIX
+
+    show_duration $THE_DATE_START
+}
+
 # Retrieve EC2 INSTANCE ID
 INSTANCE_ID=$(retrieve_instance_id $AWS_REGION $TAG_NAME $TAG_VALUE_PREFIX)
-
-
-if [ -z "$INSTANCE_ID" ]
-then
-      echo "No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region"
-      exit 127      
-fi
 
 if [ "$P_COMMAND" == "STOP" ]
 then
@@ -478,12 +554,18 @@ then
     exit
 fi
 
+if [ "$P_COMMAND" == "STATUS" ]
+then
+    executer_STATUS
+    exit
+fi
+
 # Afficher le menu initial
 afficher_menu
 
 # Demander à l'utilisateur de choisir une option
 while true; do
-    read -p "Choisissez une option (1-6) : " choix
+    read -p "Choisissez une option (1-7) : " choix
 
     case $choix in
         1) executer_STOP $INSTANCE_ID ;;
@@ -491,8 +573,9 @@ while true; do
         3) executer_RESTORE $INSTANCE_ID ;;
         4) executer_BACKUP $INSTANCE_ID ;;
         5) executer_START_RESTORE $INSTANCE_ID ;;
-        6) echo "Au revoir !" ; exit ;;
-        *) echo "Option invalide. Veuillez choisir une option valide (1-6)." ;;
+        6) executer_STATUS ;;
+        7) echo "Au revoir !" ; exit ;;
+        *) echo "Option invalide. Veuillez choisir une option valide (1-7)." ;;
     esac
 
     # Afficher à nouveau le menu
