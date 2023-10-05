@@ -24,7 +24,10 @@ function retrieve_instance_id_api(){
 
     instance_id=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
         --header 'Content-Type: application/json' \
-        --data '{"command": "GET_INSTANCE_ID"}' | jq -r '.instanceId')
+        --data "{\"command\": \"GET_INSTANCE_ID\",
+                    \"awsRegion\": \"$aws_region\",
+                    \"tagName\": \"$tag_name\",
+                    \"tagPrefixValue\": \"$tag_value_prefix\"}" | jq -r '.instanceId')
     echo $instance_id
 }
 
@@ -66,8 +69,9 @@ function start_automation_execution_api(){
     execution_id=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
     --header 'Content-Type: application/json' \
     --data "{\"command\": \"START_SSM_AUTOMATION\",
-        \"instanceId\": \"$instance_id\",
-        \"ssmDocument\": \"$ssm_document\"}" | jq -r '.executionId')
+                \"awsRegion\": \"$aws_region\",
+                \"instanceId\": \"$instance_id\",
+                \"ssmDocument\": \"$ssm_document\"}" | jq -r '.executionId')
 
     echo $execution_id
 }
@@ -111,7 +115,8 @@ function get_automation_execution_api(){
         STATUS=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
             --header 'Content-Type: application/json' \
             --data "{\"command\": \"STATUS_SSM_AUTOMATION\",
-                \"executionId\": \"$execution_id\"}" | jq -r '.executionStatus')
+                        \"awsRegion\": \"$aws_region\",
+                        \"executionId\": \"$execution_id\"}" | jq -r '.executionStatus')
         
         echo "$label="$STATUS
 
@@ -165,8 +170,9 @@ function send_kaiac_command_api(){
     command_id=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
         --header 'Content-Type: application/json' \
         --data "{\"command\": \"SEND_KAIAC_COMMAND\",
-            \"instanceId\": \"$instance_id\",
-            \"kaiacCommand\": \"$command_name\"}" | jq -r '.commandId')
+                    \"awsRegion\": \"$aws_region\",
+                    \"instanceId\": \"$instance_id\",
+                    \"kaiacCommand\": \"$command_name\"}" | jq -r '.commandId')
 
     echo $command_id
 }
@@ -215,6 +221,7 @@ function get_command_invocation_api(){
         --header 'Content-Type: application/json' \
         --data "{
             \"command\": \"STATUS_KAIAC_COMMAND\",
+            \"awsRegion\": \"$aws_region\",
             \"instanceId\":\"$instance_id\",
             \"commandId\": \"$command_id\"
             }"  | jq -r '.commandStatus')
