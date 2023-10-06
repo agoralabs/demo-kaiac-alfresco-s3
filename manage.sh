@@ -9,6 +9,10 @@ WAIT_INTERVAL=5
 P_COMMAND=$1
 CLI_MODE="API"
 
+# Définition des codes de couleur ANSI
+ORANGE='\033[38;5;208m'
+GREEN_BG='\033[42m'
+WHITE='\033[97m'
 BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
 YELLOW_BG='\033[0;103m'
@@ -16,6 +20,27 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+
+function echo_step(){
+    label=$1
+    echo -e "${GREEN_BG}$label${NC}"
+}
+
+function echo_result(){
+    label=$1
+    echo -e "${GREEN}$label${NC}"
+}
+
+function echo_status(){
+    label=$1
+    status=$2
+    if [ "$status" == "Success" ] 
+    then
+        echo -e "$label=${ORANGE}$status${NC}"
+    else
+        echo -e "$label=${WHITE}$status${NC}"
+    fi
+}
 
 function retrieve_instance_id_api(){
     aws_region=$1
@@ -56,7 +81,7 @@ function retrieve_instance_id(){
 
 function show_final_result(){
     result_to_show=$1
-    echo -e ${YELLOW_BG}
+    echo -e ${GREEN_BG}
     echo "$result_to_show"
     echo -e ${NC}
 }
@@ -65,9 +90,9 @@ check_instance_status(){
     instance_status=$1
     if [ -z "$instance_status" ]
     then
-        echo "${YELLOW_BG}No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region${NC}"
+        echo "${GREEN_BG}No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region${NC}"
     else
-        echo -e "${YELLOW_BG}Statut de l'instance : ${instance_status}${NC}"      
+        echo -e "${GREEN_BG}Statut de l'instance : ${instance_status}${NC}"      
     fi
 }
 
@@ -174,7 +199,7 @@ function get_automation_execution_api(){
                         \"awsRegion\": \"$aws_region\",
                         \"executionId\": \"$execution_id\"}" | jq -r '.executionStatus')
         
-        echo "$label="$STATUS
+        echo_status $label $STATUS
 
         sleep $interval
     done
@@ -196,7 +221,7 @@ function get_automation_execution_aws(){
 
         STATUS=$(remove_quotes $STATUS)
         
-        echo "$label="$STATUS
+        echo_status $label $STATUS
 
         sleep $interval
     done
@@ -282,7 +307,7 @@ function get_command_invocation_api(){
             \"commandId\": \"$command_id\"
             }"  | jq -r '.commandStatus')
 
-        echo "$label="$STATUS
+        echo_status $label $STATUS
 
         sleep $interval
     done
@@ -305,7 +330,7 @@ function get_command_invocation_aws(){
 
         STATUS=$(remove_quotes $STATUS)
 
-        echo "$label="$STATUS
+        echo_status $label $STATUS
 
         sleep $interval
     done
@@ -328,23 +353,12 @@ function get_command_invocation(){
 
 }
 
-function wait_alfresco_to_be_ready_old(){
-    alfresco_url=$1 # URL que vous souhaitez appeler
-    interval=$2 # Intervalle en secondes entre les messages
-
-    echo "WAITING ALFRESCO TO BE READY"
-    until $(curl --output /dev/null --silent --head --fail $alfresco_url); do
-        echo 'ALFRESCO IS READY'
-        sleep $interval
-    done
-}
-
 
 # Fonction pour afficher un message d'attente
 function afficher_attente() {
     interval=$1 # Intervalle en secondes entre les messages
     while true; do
-        echo "ALFRESCO_WEBSITE_STATUS=InProgress"
+        echo_status "ALFRESCO_WEBSITE_STATUS" "InProgress"
         sleep $interval
     done
 }
@@ -367,16 +381,31 @@ function wait_alfresco_to_be_ready(){
 
     # Vérification du code de retour de curl
     if [ $? -eq 0 ]; then
-        echo "ALFRESCO_WEBSITE_STATUS=Success"
-        echo -e "${YELLOW_BG}L'appel à l'URL $alfresco_url a réussi.${NC}"
+        echo_status "ALFRESCO_WEBSITE_STATUS" "Success"
+        echo_result "L'appel à l'URL $alfresco_url a réussi."
     else
-        echo "ALFRESCO_WEBSITE_STATUS=Failed"
-        echo -e "${YELLOW_BG}L'appel à l'URL $alfresco_url a échoué.${NC}"
+        echo_status "ALFRESCO_WEBSITE_STATUS" "Failed"
+        echo_result "L'appel à l'URL $alfresco_url a échoué."
+    fi
+}
+
+
+# Fonction pour choisir le mode API ou le mode AWS CLI
+choisir_mode() {
+    echo -e -n "Communiquer via API (${BLUE}Y${NC}/N)? : "
+    read -r choix
+    #echo -e "Enter kaiac root folder [${BLUE}/root${NC}]: " 
+    if [ "$choix" == "N" ] 
+    then
+        CLI_MODE="AWSCLI"
+    else
+        CLI_MODE="API"
     fi
 }
 
 # Fonction pour afficher le menu d'options
 afficher_menu() {
+    echo -e "MODE:${RED}$CLI_MODE${NC}"
     echo -e "${BLUE}OPTIONS :${NC}"
     echo -e "${BLUE}1${NC}. STOP"
     echo -e "${BLUE}2${NC}. START"
@@ -429,11 +458,10 @@ executer_STOP() {
 
     show_title "Vous avez choisi de stopper votre instance ALFRESCO."
     # Stop EC2 instance
+    echo_step "Etape 1/1 : Arrêt de l'instance EC2 en cours"
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StopEC2Instance" $instance_id)
-    #echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STOPPING_STATUS" $WAIT_INTERVAL
-    
-    echo -e "${YELLOW_BG}Arrêt terminé${NC}"
+    echo_step "Etape 1/1 : Arrêt de l'instance EC2 terminé"
 
     show_duration $THE_DATE_START
 }
@@ -448,19 +476,24 @@ executer_START() {
 
     show_title "Vous avez choisi de démarrer votre instance ALFRESCO."
     # Start EC2 instance
+    echo_step "Etape 1/3 : Démarrage de l'instance EC2 en cours"
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
-    #echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STARTING_STATUS" $WAIT_INTERVAL
+    echo_step "Etape 1/3 : Démarrage de l'instance EC2 terminé"
+    echo ""
+
+    # Start Docker containers
+    echo_step "Etape 2/3 : Démarrage des containers Docker en cours"
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restart")
+    get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "DOCKER_START_STATUS" $WAIT_INTERVAL
+    echo_step "Etape 2/3 : Démarrage des containers Docker terminé"
+    echo ""
 
     # Start Alfresco
-    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restart")
-    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
-    get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "DOCKER_START_STATUS" $WAIT_INTERVAL
-    
-    echo -e "${YELLOW_BG}Démarrage terminé${NC}"
-
+    echo_step "Etape 3/3 : Démarrage d'ALFRESCO en cours"
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
- 
+    echo_step "Etape 3/3 : Démarrage d'ALFRESCO terminé"
+
     show_duration $THE_DATE_START
 }
 
@@ -474,13 +507,16 @@ executer_RESTORE() {
 
     show_title "Vous avez choisi de restaurer vos données ALFRESCO."
     # Restore Alfresco
+    echo_step "Etape 1/2 : Restauration en cours"
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
-    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
+    echo_step "Etape 1/2 : Restauration terminée"
+    echo ""
 
-    echo -e "${YELLOW_BG}Restore terminé${NC}"
-
+    # Start Alfresco
+    echo_step "Etape 2/2 : Démarrage d'ALFRESCO en cours"
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
+    echo_step "Etape 2/2 : Démarrage d'ALFRESCO terminé"
 
     show_duration $THE_DATE_START
 }
@@ -495,12 +531,10 @@ executer_BACKUP() {
 
     show_title "Vous avez choisi de sauvegarder vos données ALFRESCO."
     # BACKUP Alfresco
+    echo_step "Etape 1/1 : Sauvegarde en cours"
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "backup")
-    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
-
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_BACKUP_STATUS" $WAIT_INTERVAL
-
-    echo -e "${YELLOW_BG}Backup terminé${NC}"
+    echo_step "Etape 1/1 : Sauvegarde terminée"
 
     show_duration $THE_DATE_START
 }
@@ -516,16 +550,23 @@ executer_START_RESTORE() {
 
     show_title "Vous avez choisi de redémarrer l'instance et restaurer vos données ALFRESCO."
     # Start EC2 instance
+    echo_step "Etape 1/3 : Démarrage de l'instance EC2 en cours"
     EXECUTION_ID=$(start_automation_execution $AWS_REGION "AWS-StartEC2Instance" $instance_id)
-    #echo "EXECUTION_ID="$EXECUTION_ID
     get_automation_execution $AWS_REGION $EXECUTION_ID "STARTING_STATUS" $WAIT_INTERVAL
+    echo_step "Etape 1/3 : Démarrage de l'instance EC2 terminé"
+    echo ""
 
     # Restore Alfresco
+    echo_step "Etape 2/3 : Restauration en cours"
     RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
-    #echo "RUNCOMMAND_ID="$RUNCOMMAND_ID
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
+    echo_step "Etape 2/3 : Restauration terminée"
+    echo ""
 
+    # Start Alfresco
+    echo_step "Etape 3/3 : Démarrage d'ALFRESCO en cours"
     wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
+    echo_step "Etape 3/3 : Démarrage d'ALFRESCO terminé"
 
     show_duration $THE_DATE_START
 }
@@ -539,6 +580,9 @@ executer_STATUS() {
 
     show_duration $THE_DATE_START
 }
+
+# choisir le mode
+choisir_mode
 
 # Retrieve EC2 INSTANCE ID
 INSTANCE_ID=$(retrieve_instance_id $AWS_REGION $TAG_NAME $TAG_VALUE_PREFIX)
@@ -579,12 +623,14 @@ then
     exit
 fi
 
+
 # Afficher le menu initial
 afficher_menu
 
 # Demander à l'utilisateur de choisir une option
 while true; do
-    read -p "Choisissez une option (1-7) : " choix
+    echo -e -n "Choisissez une option (${BLUE}1-7${NC}) : "
+    read -r choix
 
     case $choix in
         1) executer_STOP $INSTANCE_ID ;;
@@ -593,8 +639,8 @@ while true; do
         4) executer_BACKUP $INSTANCE_ID ;;
         5) executer_START_RESTORE $INSTANCE_ID ;;
         6) executer_STATUS ;;
-        7) echo "Au revoir !" ; exit ;;
-        *) echo "Option invalide. Veuillez choisir une option valide (1-7)." ;;
+        7) echo -e "${GREEN}Au revoir !${NC}" ; exit ;;
+        *) echo -e "${RED}Option invalide.${NC} Veuillez choisir une option valide (${BLUE}1-7${NC})." ;;
     esac
 
     # Afficher à nouveau le menu
