@@ -9,24 +9,34 @@ aws s3api head-object --bucket $s3_bucket_backup --key $data_file || NOT_EXIST=t
 if [ $NOT_EXIST ]; then
   echo "File does not exist."
 else
+  RFILE=$source_folder/$restored_file
+  rm -rf $RFILE
   rm -rf $source_folder/restore
   mkdir $source_folder/restore
   #récupération du backup
-  aws s3 cp s3://$s3_bucket_backup/$data_file ./$restored_file
+  aws s3 cp s3://$s3_bucket_backup/$data_file $RFILE
   cd $source_folder/restore
-  unzip -qq $source_folder/$restored_file
   
-  #arrêt des containers et suppression des volumes
-  docker compose -f $source_folder/docker-compose.yml down
-  #docker volume rm $(docker volume ls -q | grep alfresco_postgres)
-  docker volume rm $(docker volume ls -q)
+  if [ -f "$RFILE" ]; then
 
-  #restauration des données
-  cp -r $source_folder/restore/alf-repo-data $source_folder/data
-  chown -R 33000 $source_folder/data/alf-repo-data
-  
-  #lancement des containers
-  docker compose -f $source_folder/docker-compose-pg.yml up -d --build --force-recreate
+    unzip -qq $RFILE
+    
+    #arrêt des containers et suppression des volumes
+    docker compose -f $source_folder/docker-compose.yml down
+    #docker volume rm $(docker volume ls -q | grep alfresco_postgres)
+    docker volume rm $(docker volume ls -q)
+
+    #restauration des données
+    cp -r $source_folder/restore/alf-repo-data $source_folder/data
+    chown -R 33000 $source_folder/data/alf-repo-data
+    
+    #lancement des containers
+    docker compose -f $source_folder/docker-compose-pg.yml up -d --build --force-recreate
+
+  else
+    echo "Fichier non trouvé: $RFILE"
+
+  fi
 
 fi
 

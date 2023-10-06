@@ -413,7 +413,8 @@ afficher_menu() {
     echo -e "${BLUE}4${NC}. BACKUP"
     echo -e "${BLUE}5${NC}. START & RESTORE"
     echo -e "${BLUE}6${NC}. STATUS"
-    echo -e "${BLUE}7${NC}. Quitter"
+    echo -e "${BLUE}7${NC}. MONITOR ALFRESCO"
+    echo -e "${BLUE}8${NC}. Quitter"
 }
 
 show_title() {
@@ -581,6 +582,18 @@ executer_STATUS() {
     show_duration $THE_DATE_START
 }
 
+# Fonction pour exécuter l'option 7
+executer_MONITOR_ALFRESCO() {
+    THE_DATE_START=$(get_date_seconds)
+
+    # Monitor Alfresco
+    echo_step "Monitoring d'ALFRESCO en cours"
+    wait_alfresco_to_be_ready $ALFRESCO_URL $WAIT_INTERVAL
+    echo_step "Monitoring d'ALFRESCO terminé"
+
+    show_duration $THE_DATE_START
+}
+
 # choisir le mode
 choisir_mode
 
@@ -629,7 +642,7 @@ afficher_menu
 
 # Demander à l'utilisateur de choisir une option
 while true; do
-    echo -e -n "Choisissez une option (${BLUE}1-7${NC}) : "
+    echo -e -n "Choisissez une option (${BLUE}1-8${NC}) : "
     read -r choix
 
     case $choix in
@@ -639,8 +652,9 @@ while true; do
         4) executer_BACKUP $INSTANCE_ID ;;
         5) executer_START_RESTORE $INSTANCE_ID ;;
         6) executer_STATUS ;;
-        7) echo -e "${GREEN}Au revoir !${NC}" ; exit ;;
-        *) echo -e "${RED}Option invalide.${NC} Veuillez choisir une option valide (${BLUE}1-7${NC})." ;;
+        7) executer_MONITOR_ALFRESCO ;;
+        8) echo -e "${GREEN}Au revoir !${NC}" ; exit ;;
+        *) echo -e "${RED}Option invalide.${NC} Veuillez choisir une option valide (${BLUE}1-8${NC})." ;;
     esac
 
     # Afficher à nouveau le menu
