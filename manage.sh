@@ -8,6 +8,7 @@ API_SEND_COMMAND_URL="https://lambda.skyscaledev.com/send_command"
 WAIT_INTERVAL=5
 P_COMMAND=$1
 CLI_MODE="API"
+APP_LOCAL_FOLDER="/vagrant/demo-kaiac-alfresco"
 
 # Définition des codes de couleur ANSI
 ORANGE='\033[38;5;208m'
@@ -90,7 +91,7 @@ check_instance_status(){
     instance_status=$1
     if [ -z "$instance_status" ]
     then
-        echo "${GREEN_BG}No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region${NC}"
+        echo -e "${RED}No instance id found with prefix $TAG_VALUE_PREFIX in $AWS_REGION region${NC}"
     else
         echo -e "${GREEN_BG}Statut de l'instance : ${instance_status}${NC}"      
     fi
@@ -246,14 +247,16 @@ function get_automation_execution(){
 function send_kaiac_command_api(){
     aws_region=$1
     instance_id=$2
-    command_name=$3
+    commands=$3
+    document_name=$4
 
     command_id=$(curl -s --location ''$API_SEND_COMMAND_URL'' \
         --header 'Content-Type: application/json' \
         --data "{\"command\": \"SEND_KAIAC_COMMAND\",
                     \"awsRegion\": \"$aws_region\",
                     \"instanceId\": \"$instance_id\",
-                    \"kaiacCommand\": \"$command_name\"}" | jq -r '.commandId')
+                    \"commands\": \"$commands\",
+                    \"documentName\": \"$document_name\"}" | jq -r '.commandId')
 
     echo $command_id
 }
@@ -261,10 +264,11 @@ function send_kaiac_command_api(){
 function send_kaiac_command_aws(){
     aws_region=$1
     instance_id=$2
-    command_name=$3
+    commands=$3
+    document_name=$4
 
-    command_id=$(aws ssm send-command --document-name "Kaiac_Command" --document-version "1" \
-    --targets "[{\"Key\":\"InstanceIds\",\"Values\":[\"$instance_id\"]}]" --parameters "{\"Command\":[\"$command_name\"]}" \
+    command_id=$(aws ssm send-command --document-name "$document_name" --document-version "1" \
+    --targets "[{\"Key\":\"InstanceIds\",\"Values\":[\"$instance_id\"]}]" --parameters "{\"commands\":[\"$commands\"]}" \
     --timeout-seconds 600 --max-concurrency "50" --max-errors "0" --region $aws_region --query 'Command.CommandId')
 
     command_id=$(remove_quotes $command_id)
@@ -275,12 +279,13 @@ function send_kaiac_command(){
     aws_region=$1
     instance_id=$2
     command_name=$3
+    document_name=$4
 
     if [ "$CLI_MODE" == "API" ]
     then
-        send_kaiac_command_api $aws_region $instance_id $command_name
+        send_kaiac_command_api $aws_region $instance_id $command_name $document_name
     else
-        send_kaiac_command_aws $aws_region $instance_id $command_name
+        send_kaiac_command_aws $aws_region $instance_id $command_name $document_name
     fi
 }
 
@@ -485,7 +490,7 @@ executer_START() {
 
     # Start Docker containers
     echo_step "Etape 2/3 : Démarrage des containers Docker en cours"
-    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restart")
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "$APP_LOCAL_FOLDER/restart.sh" "AWS-RunShellScript")
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "DOCKER_START_STATUS" $WAIT_INTERVAL
     echo_step "Etape 2/3 : Démarrage des containers Docker terminé"
     echo ""
@@ -509,7 +514,7 @@ executer_RESTORE() {
     show_title "Vous avez choisi de restaurer vos données ALFRESCO."
     # Restore Alfresco
     echo_step "Etape 1/2 : Restauration en cours"
-    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "$APP_LOCAL_FOLDER/restore.sh" "AWS-RunShellScript")
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
     echo_step "Etape 1/2 : Restauration terminée"
     echo ""
@@ -533,7 +538,7 @@ executer_BACKUP() {
     show_title "Vous avez choisi de sauvegarder vos données ALFRESCO."
     # BACKUP Alfresco
     echo_step "Etape 1/1 : Sauvegarde en cours"
-    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "backup")
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "$APP_LOCAL_FOLDER/backup.sh" "AWS-RunShellScript")
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_BACKUP_STATUS" $WAIT_INTERVAL
     echo_step "Etape 1/1 : Sauvegarde terminée"
 
@@ -559,7 +564,7 @@ executer_START_RESTORE() {
 
     # Restore Alfresco
     echo_step "Etape 2/3 : Restauration en cours"
-    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "restore")
+    RUNCOMMAND_ID=$(send_kaiac_command $AWS_REGION $instance_id "$APP_LOCAL_FOLDER/restore.sh" "AWS-RunShellScript")
     get_command_invocation $AWS_REGION $RUNCOMMAND_ID $instance_id "ALFRESCO_RESTORE_STATUS" $WAIT_INTERVAL
     echo_step "Etape 2/3 : Restauration terminée"
     echo ""
