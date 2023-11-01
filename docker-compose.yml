@@ -10,7 +10,7 @@ services:
             DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
             DB: postgres
             SOLR_COMMS: secret 
-        mem_limit: 7488m
+        mem_limit: 1900m
         depends_on: 
             - postgres  
         environment:
@@ -69,7 +69,7 @@ services:
     transform-core-aio:
         image: ${DOCKER_REPOSITORY}/alfresco/alfresco-transform-core-aio:${TRANSFORM_ENGINE_TAG}
         restart: on-failure  
-        mem_limit: 2048m
+        mem_limit: 1536m
         environment:
             JAVA_OPTS: "
               -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
@@ -94,7 +94,7 @@ services:
             SHARE_TAG: ${SHARE_TAG}
             SERVER_NAME: ${SERVER_NAME}
             DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
-        mem_limit: 1872m
+        mem_limit: 1g
         environment:
             REPO_HOST: "alfresco"
             REPO_PORT: "8080"
@@ -111,7 +111,7 @@ services:
 
     postgres:
         image: ${DOCKER_REPOSITORY}/postgres:${POSTGRES_TAG}
-        mem_limit: 1872m
+        mem_limit: 512m
         environment:
             - POSTGRES_PASSWORD=alfresco
             - POSTGRES_USER=alfresco
@@ -139,7 +139,7 @@ services:
             ALFRESCO_COMMS: secret 
             CROSS_LOCALE: "true"
             DISABLE_CONTENT_INDEXING: "false"
-        mem_limit: 3744m
+        mem_limit: 2g
         environment:
             #Solr needs to know how to register itself with Alfresco
             SOLR_ALFRESCO_HOST: "alfresco"
