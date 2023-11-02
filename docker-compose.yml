@@ -136,7 +136,7 @@ services:
             ALFRESCO_COMMS: secret 
             CROSS_LOCALE: "true"
             DISABLE_CONTENT_INDEXING: "false"
-        mem_limit: 1300m
+        mem_limit: 1000m
         environment:
             #Solr needs to know how to register itself with Alfresco
             SOLR_ALFRESCO_HOST: "alfresco"
@@ -147,7 +147,6 @@ services:
             #Create the default alfresco and archive cores
             SOLR_CREATE_ALFRESCO_DEFAULTS: "alfresco,archive" 
             SOLR_OPTS: "
-                -XX:-UseLargePages
                 -Dalfresco.secureComms.secret=nebjc6vb7u 
             "
         volumes: 
@@ -158,7 +157,7 @@ services:
 
     activemq:
         image: ${DOCKER_REPOSITORY}/alfresco/alfresco-activemq:${ACTIVEMQ_TAG}
-        mem_limit: 512m
+        mem_limit: 128m
         ports:
             - 8161:8161
         volumes: 
@@ -167,7 +166,7 @@ services:
 
     content-app:
         image: ${DOCKER_REPOSITORY}/alfresco/alfresco-content-app:${ACA_TAG}
-        mem_limit: 256m
+        mem_limit: 128m
         environment:
             APP_BASE_SHARE_URL: "http://${SERVER_NAME}:8080/#/preview/s"
         depends_on:

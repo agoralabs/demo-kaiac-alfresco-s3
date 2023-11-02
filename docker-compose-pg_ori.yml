@@ -10,7 +10,7 @@ services:
             DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
             DB: postgres
             SOLR_COMMS: secret 
-        mem_limit: 1200m
+        mem_limit: 1900m
         depends_on: 
             - postgres  
         environment:
@@ -59,6 +59,7 @@ services:
                 -XX:+UseG1GC -XX:+UseStringDeduplication
                 -Dgoogledocs.enabled=false   
                 -Ddev.email.not.sent=true  
+                -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
             '
         volumes: 
             - ./data/alf-repo-data:/usr/local/tomcat/alf_data
@@ -68,9 +69,10 @@ services:
     transform-core-aio:
         image: ${DOCKER_REPOSITORY}/alfresco/alfresco-transform-core-aio:${TRANSFORM_ENGINE_TAG}
         restart: on-failure  
-        mem_limit: 512m
+        mem_limit: 1g
         environment:
             JAVA_OPTS: "
+              -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
               -Dserver.tomcat.threads.max=12
               -Dserver.tomcat.threads.min=4
               -Dlogging.level.org.alfresco.transform.common.TransformerDebug=ERROR
@@ -99,16 +101,17 @@ services:
             CSRF_FILTER_REFERER: "http://localhost:8080/.*"
             CSRF_FILTER_ORIGIN: "http://localhost:8080"
             JAVA_OPTS: "
-                -Xms512m -Xmx512m
+                -Xms1744m -Xmx1744m
                 -Dalfresco.context=alfresco
                 -Dalfresco.protocol=http
+                -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
                 "
         volumes: 
             - ./logs/share:/usr/local/tomcat/logs  
 
     postgres:
         image: ${DOCKER_REPOSITORY}/postgres:${POSTGRES_TAG}
-        mem_limit: 512m
+        mem_limit: 1872m
         environment:
             - POSTGRES_PASSWORD=alfresco
             - POSTGRES_USER=alfresco
@@ -137,7 +140,7 @@ services:
             ALFRESCO_COMMS: secret 
             CROSS_LOCALE: "true"
             DISABLE_CONTENT_INDEXING: "false"
-        mem_limit: 1000m
+        mem_limit: 2g
         environment:
             #Solr needs to know how to register itself with Alfresco
             SOLR_ALFRESCO_HOST: "alfresco"
@@ -148,6 +151,8 @@ services:
             #Create the default alfresco and archive cores
             SOLR_CREATE_ALFRESCO_DEFAULTS: "alfresco,archive" 
             SOLR_OPTS: "
+                -XX:-UseLargePages
+                -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
                 -Dalfresco.secureComms.secret=nebjc6vb7u 
             "
         volumes: 
@@ -158,7 +163,7 @@ services:
 
     activemq:
         image: ${DOCKER_REPOSITORY}/alfresco/alfresco-activemq:${ACTIVEMQ_TAG}
-        mem_limit: 128m
+        mem_limit: 1g
         ports:
             - 8161:8161
         volumes: 
@@ -167,7 +172,7 @@ services:
 
     content-app:
         image: ${DOCKER_REPOSITORY}/alfresco/alfresco-content-app:${ACA_TAG}
-        mem_limit: 128m
+        mem_limit: 256m
         environment:
             APP_BASE_SHARE_URL: "http://${SERVER_NAME}:8080/#/preview/s"
         depends_on:
