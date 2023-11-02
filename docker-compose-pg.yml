@@ -137,7 +137,7 @@ services:
             ALFRESCO_COMMS: secret 
             CROSS_LOCALE: "true"
             DISABLE_CONTENT_INDEXING: "false"
-        mem_limit: 1100m
+        mem_limit: 1200m
         environment:
             #Solr needs to know how to register itself with Alfresco
             SOLR_ALFRESCO_HOST: "alfresco"
