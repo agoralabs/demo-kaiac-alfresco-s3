@@ -59,7 +59,6 @@ services:
                 -XX:+UseG1GC -XX:+UseStringDeduplication
                 -Dgoogledocs.enabled=false   
                 -Ddev.email.not.sent=true  
-                -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
             '
         volumes: 
             - ./data/alf-repo-data:/usr/local/tomcat/alf_data
@@ -72,7 +71,6 @@ services:
         mem_limit: 512m
         environment:
             JAVA_OPTS: "
-              -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
               -Dserver.tomcat.threads.max=12
               -Dserver.tomcat.threads.min=4
               -Dlogging.level.org.alfresco.transform.common.TransformerDebug=ERROR
@@ -101,10 +99,9 @@ services:
             CSRF_FILTER_REFERER: "http://localhost:8080/.*"
             CSRF_FILTER_ORIGIN: "http://localhost:8080"
             JAVA_OPTS: "
-                -Xms1744m -Xmx1744m
+                -Xms512m -Xmx512m
                 -Dalfresco.context=alfresco
                 -Dalfresco.protocol=http
-                -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
                 "
         volumes: 
             - ./logs/share:/usr/local/tomcat/logs  
@@ -151,7 +148,6 @@ services:
             SOLR_CREATE_ALFRESCO_DEFAULTS: "alfresco,archive" 
             SOLR_OPTS: "
                 -XX:-UseLargePages
-                -XX:MinRAMPercentage=50 -XX:MaxRAMPercentage=80
                 -Dalfresco.secureComms.secret=nebjc6vb7u 
             "
         volumes: 
