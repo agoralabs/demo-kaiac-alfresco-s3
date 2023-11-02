@@ -10,7 +10,7 @@ services:
             DOCKER_REPOSITORY: ${DOCKER_REPOSITORY}
             DB: postgres
             SOLR_COMMS: secret 
-        mem_limit: 512m
+        mem_limit: 1200m
         depends_on: 
             - postgres  
         environment:
