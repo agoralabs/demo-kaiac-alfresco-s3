@@ -14,91 +14,84 @@ auto_restore="$TF_VAR_ENV_APP_GL_DEVOPS_RESTORE_AUTO"
 
 aws_region="$TF_VAR_ENV_APP_GL_AWS_REGION_ECR"
 
-aws_accountid="$TF_VAR_ENV_APP_GL_AWS_ACCOUNT_ID"
-
 docker_repository="$TF_VAR_ENV_APP_GL_DOCKER_REPOSITORY"
 
-if [ "$SCRIPT_MODE" == "CLOUDOCKER" ]
+#creation des volumes et positionnement des permissions
+mkdir -p $source_folder/data/alf-repo-data
+chown -R 33000 $source_folder/data/alf-repo-data
+
+mkdir -p $source_folder/logs/alfresco
+chown -R 33000 $source_folder/logs/alfresco
+
+mkdir -p $source_folder/data/solr-data
+chown 33007 $source_folder/data/solr-data
+
+mkdir -p $source_folder/backup/solr/alfresco
+chown 33007 $source_folder/backup/solr/alfresco
+
+mkdir -p $source_folder/backup/solr/archive
+chown 33007 $source_folder/backup/solr/archive
+
+mkdir -p $source_folder/data/postgres-data
+chown -R 999 $source_folder/data/postgres-data
+
+mkdir -p $source_folder/logs/postgres
+chown -R 999 $source_folder/logs/postgres
+
+mkdir -p $source_folder/data/activemq-data
+chown -R 33031 $source_folder/data/activemq-data
+
+#connexion au repo docker AWS
+if [ "$docker_repository" == "docker.io" ] 
+then
+    docker login
+else
+    aws ecr get-login-password --region $aws_region | docker login --username AWS --password-stdin $docker_repository
+fi
+
+
+if [ "$auto_backup" == "YES" ] 
 then
 
-    #creation des volumes et positionnement des permissions
-    mkdir -p $source_folder/data/alf-repo-data
-    chown -R 33000 $source_folder/data/alf-repo-data
+    #plannification du backup toutes les 5 minutes
+    chmod +x $source_folder/backup.sh
 
-    mkdir -p $source_folder/logs/alfresco
-    chown -R 33000 $source_folder/logs/alfresco
-
-    mkdir -p $source_folder/data/solr-data
-    chown 33007 $source_folder/data/solr-data
-
-    mkdir -p $source_folder/backup/solr/alfresco
-    chown 33007 $source_folder/backup/solr/alfresco
-
-    mkdir -p $source_folder/backup/solr/archive
-    chown 33007 $source_folder/backup/solr/archive
-
-    mkdir -p $source_folder/data/postgres-data
-    chown -R 999 $source_folder/data/postgres-data
-
-    mkdir -p $source_folder/logs/postgres
-    chown -R 999 $source_folder/logs/postgres
-
-    mkdir -p $source_folder/data/activemq-data
-    chown -R 33031 $source_folder/data/activemq-data
-
-    #connexion au repo docker AWS
-    if [ "$docker_repository" == "docker.io" ] 
+    if [ $(crontab -l | grep "kaiac") ] 
     then
-        docker login
+        echo "already scheduled"
     else
-        aws ecr get-login-password --region $aws_region | docker login --username AWS --password-stdin $aws_accountid.dkr.ecr.$aws_region.amazonaws.com
-    fi
-    
-
-    if [ "$auto_backup" == "YES" ] 
-    then
-
-        #plannification du backup toutes les 5 minutes
-        chmod +x $source_folder/backup.sh
-
-        if [ $(crontab -l | grep "kaiac") ] 
-        then
-            echo "already scheduled"
-        else
-            echo "to be scheduled"
-            crontab -l > tmpcron
-            #echo new cron into cron file
-            echo "*/5 * * * * $source_folder/backup.sh >> $source_folder/backup.log 2>&1" >> tmpcron
-            #install new cron file
-            crontab tmpcron
-            rm tmpcron
-        fi
-
+        echo "to be scheduled"
+        crontab -l > tmpcron
+        #echo new cron into cron file
+        echo "*/5 * * * * $source_folder/backup.sh >> $source_folder/backup.log 2>&1" >> tmpcron
+        #install new cron file
+        crontab tmpcron
+        rm tmpcron
     fi
 
-    if [ "$auto_restore" == "YES" ] 
-    then
+fi
 
-        # Check si un backup existe
-        aws s3api head-object --bucket $s3_bucket_backup --key $data_file || NOT_EXIST=true
-        if [ $NOT_EXIST ]; then
-            echo "Backup does not exist."
+if [ "$auto_restore" == "YES" ] 
+then
 
-            #lancement des containers
-            docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
-
-        else
-
-            chmod +x $source_folder/restore.sh
-            . $source_folder/restore.sh
-            
-        fi
-
-    else
+    # Check si un backup existe
+    aws s3api head-object --bucket $s3_bucket_backup --key $data_file || NOT_EXIST=true
+    if [ $NOT_EXIST ]; then
+        echo "Backup does not exist."
 
         #lancement des containers
         docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
 
+    else
+
+        chmod +x $source_folder/restore.sh
+        . $source_folder/restore.sh
+        
     fi
+
+else
+
+    #lancement des containers
+    docker compose -f $source_folder/docker-compose.yml up -d --build --force-recreate
 
 fi
